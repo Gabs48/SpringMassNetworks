@@ -8,7 +8,7 @@ morph = SpringMorphology(noNodes = 20 ,spring = 100, noNeighbours = 3,environmen
 control = SineControl(morph)
 robot = Robot(morph,control)
 
-plotter = Plotter(plotCycle = 20,plot=False);
+plotter = Plotter(plot=False);
 simulenv = SimulationEnvironment(1.0 / 200, simulationLength = 100, plot = plotter)
 
 trainscheme = TrainingScheme()
