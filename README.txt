@@ -11,6 +11,8 @@ using packages:
 	neurolab
 	sqlite3
 	pyevolve
+	
+in order to create movies: FFmpeg must be installed	
 
 ----- Examples -----
 
