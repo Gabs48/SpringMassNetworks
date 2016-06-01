@@ -5,7 +5,7 @@ from roboTraining.simulate import *
 
 # create robot
 env = HardEnvironment() 
-morph = SpringMorphology(noNodes = 20,spring = 50, environment = env)
+morph = SpringMorphology(noNodes = 20,spring = 100, environment = env)
 control = SineControl(morph,amplitude = 0.1) 
 robot = Robot(morph, control)
 
