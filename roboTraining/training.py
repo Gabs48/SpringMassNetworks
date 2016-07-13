@@ -7,6 +7,8 @@ from utils import num2str, Plot
 from types import *
 import matplotlib.pyplot as plt
 import matplotlib
+from multiprocessing import *
+import time
 
 from robot import Robot 
 from simulate import Simulation, VerletSimulation
@@ -171,8 +173,10 @@ class Training(object):
 		if self.keepIntermediateParameters:
 			self.parameterHistory.append(parameterslist)
 
-		if self.showIntermediateResults:
-			print("iteration " + num2str(len(self.scoreHistory)) + "\t has score \t" + num2str(score) )
+ 		if self.showIntermediateResults:
+			 # save all data and plots
+			process_name = current_process().name
+			print("-- " + process_name + " -- iteration " + num2str(len(self.scoreHistory)) + "\t has score \t" + num2str(score) )
 
 	def addResults(self, ScoreData):
 		""" add list of results """
@@ -333,11 +337,14 @@ class GeneticTraining(Training):
 
 		ga.setElitism(True)
 		ga.setElitismReplacement(2)
-	
+
+		t_init = time.time()
 		ga.evolve()
+		t_tot = time.time() - t_init
+
 		best = ga.bestIndividual()
 		self.data = self.fetchData()
-		return  best.genomeList, best.getRawScore()
+		return  best.genomeList, best.getRawScore(), t_tot
 
 	def generatePlot(self, p = 0.2):
 		""" generate Plot of the Genetic Training results """
@@ -436,16 +443,22 @@ class CMATraining(Training):
 		{'boundary_handling': 'BoundTransform ','bounds': [0,1], 
 		'maxfevals' : self.maxIter,'verbose' :-9})
 		self.popSize = es.popsize
+		
+		t_init = time.time()
+		
 		while not es.stop():
 			self.sigmaList.append(es.sigma)
 			solutions = es.ask()
 			es.tell(solutions, [self.evaluateParam(list) for list in solutions])
 		self.sigmaList.append(es.sigma)
 		res = es.result();
+
+		t_tot = time.time() - t_init
 		
 		self.bestParameters = self.listToArray(res[0])
 		self.optimalscore = self.resultTransform(res[1])
-		return self.bestParameters, self.optimalscore
+		
+		return self.bestParameters, self.optimalscore, t_tot
 
 	def evaluateParam(self, list):
 		score = super(CMATraining,self).evaluateParam( self.listToArray(list))

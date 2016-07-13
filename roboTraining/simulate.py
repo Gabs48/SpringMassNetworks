@@ -48,7 +48,12 @@ class Plotter(object):
 				self.fileList = []
 				self.fps = 30
 				self.frame = 0
-				self.IMGname = 'temp/_tmp%04d.png'
+				if os.name == "posix":
+					directory = os.getenv("HOME") + '/.temp'
+					os.mkdir(directory)
+					self.IMGname =  directory + '_tmp%04d.png'
+				else:
+					self.IMGname = 'temp/_tmp%04d.png'
 				self.movieName = movieName
 			if color:
 				jet = cm = plt.get_cmap('spectral') 
@@ -139,7 +144,7 @@ class Plotter(object):
 class SimulationEnvironment(object):
 	""" class with general Parameters for Simulations but not bound to a specific robot"""
 	param = ["timeStep", "simulationLength", "verlet"]
-	def  __init__(self,timeStep = 0.005, simulationLength=2000, plot = Plotter(), verlet = True, controlPlot = True, 
+	def  __init__(self,timeStep = 0.005, simulationLength=10000, plot = Plotter(), verlet = True, controlPlot = True, 
 				perfMetr = "dist", refDist = 0, refPower = 0):
 		self.timeStep = timeStep  # time step size
 		self.plot = plot  # plotting
