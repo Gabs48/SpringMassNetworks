@@ -3,3 +3,10 @@
 
 # Ignore Data folder
 Data
+
+# Ignore edited files
+*.py~
+
+# Ignore vlaams HPC files
+*.vsc
+
