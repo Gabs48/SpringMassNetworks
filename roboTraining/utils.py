@@ -3,6 +3,8 @@ import numpy as np
 from datetime import datetime
 import os
 import neurolab as nl
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 """ extra functionalities needed by other modules in the roboTraining package """
