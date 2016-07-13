@@ -1,3 +1,5 @@
+#!/usr/bin/python2
+
 from multiprocessing import *
 
 from roboTraining.robot import *
@@ -7,7 +9,8 @@ from roboTraining.utils import *
 
 
 def experiment(noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, simTimeStep_=0.005, \
-	simTime_=0.5, controlPlot_=False, maxIter_=100, maxOmega=10, maxAmplitude=0.25):
+	simTime_=0.5, controlPlot_=False, maxIter_=10, maxOmega=10, maxAmplitude=0.25, \
+	fileName1="Data", fileName2="CMA"):
 	"""Start a standard experiment"""
 
 	env = HardEnvironment()
@@ -24,7 +27,7 @@ def experiment(noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, simTimeSt
 	trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
 	trainscheme.createTrainVariable("amplitude", 0, maxAmplitude)
 
-	saver = Save(None, 'RobotData', 'CMATraining') 
+	saver = Save(None, fileName2, fileName1) 
 	train = CMATraining(trainscheme, robot, simulenv, saver=saver, maxIter=maxIter_)
 
 	param, score, t_tot = train.run() # perform optimization
@@ -39,8 +42,8 @@ if __name__ == "__main__":
 
 	p_list = []
 
-	for name in range(1):
-		p =Process(target=experiment, args=(), name="P-" + str(name))
+	for name in range(20):
+		p = Process(target=experiment, args=(), name="P-" + str(name))
 		p.start()
 		p_list.append(p)
 		

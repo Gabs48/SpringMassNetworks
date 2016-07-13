@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Options
+#PBS -o results.$PBS_JOBID
+#PBS -e results.$PBS_JOBID
+#PBS -l walltime=0:01:00
+#PBS -m e
+
+# Environment
+cd $PBS_O_WORKDIR
+echo "== Start HPC Job =="
+date
+
+# Start script
+./hpc_batch.py
+
+# Finalize
+echo "== End HPC Job =="
