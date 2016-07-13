@@ -1,5 +1,7 @@
 ﻿import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import abc
 from utils import num2str, Plot
