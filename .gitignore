@@ -1,0 +1,5 @@
+# Ignore compiled python file
+*.pyc
+
+# Ignore Data folder
+Data
