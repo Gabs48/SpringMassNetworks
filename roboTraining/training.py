@@ -5,9 +5,11 @@ import numpy as np
 import copy
 from utils import num2str, Plot
 from types import *
-import matplotlib.pyplot as plt
 import matplotlib
-from multiprocessing import *
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from mpi4py import MPI
+import platform
 import time
 
 from robot import Robot 
@@ -174,9 +176,13 @@ class Training(object):
 			self.parameterHistory.append(parameterslist)
 
  		if self.showIntermediateResults:
-			 # save all data and plots
-			process_name = current_process().name
-			print("-- " + process_name + " -- iteration " + num2str(len(self.scoreHistory)) + "\t has score \t" + num2str(score) )
+			# Get machine name
+			comm = MPI.COMM_WORLD
+			rank = comm.Get_rank()
+			size = comm.Get_size()
+			machine = platform.node()
+			print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + " -- iteration " + \
+				num2str(len(self.scoreHistory)) + "\t has score \t" + num2str(score) )
 
 	def addResults(self, ScoreData):
 		""" add list of results """

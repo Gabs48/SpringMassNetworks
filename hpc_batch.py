@@ -1,15 +1,18 @@
-#!/usr/bin/python2
-
-from multiprocessing import *
+#! /usr/bin/env python2
 
 from roboTraining.robot import *
 from roboTraining.simulate import *
 from roboTraining.training import *
 from roboTraining.utils import *
 
+from multiprocessing import *
+from mpi4py import MPI
+import platform
+import sys
+import datetime
 
-def experiment(fileName="CMA", folderName="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
-	simTimeStep_=0.005, simTime_=0.5, controlPlot_=False, maxIter_=10, maxOmega=10, maxAmplitude=0.25):
+def experiment(fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
+	simTimeStep_=0.005, simTime_=20, controlPlot_=False, maxIter_=10, maxOmega=10, maxAmplitude=0.25):
 	"""Start a standard experiment"""
 
 	env = HardEnvironment()
@@ -26,7 +29,7 @@ def experiment(fileName="CMA", folderName="Data", noNodes_=20, spring_=100, noNe
 	trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
 	trainscheme.createTrainVariable("amplitude", 0, maxAmplitude)
 
-	saver = Save(None, fileName, folderName)
+	saver = Save(None, fileName_, folderName_)
 	train = CMATraining(trainscheme, robot, simulenv, saver=saver, maxIter=maxIter_)
 
 	param, score, t_tot = train.run() # perform optimization
@@ -37,18 +40,21 @@ def experiment(fileName="CMA", folderName="Data", noNodes_=20, spring_=100, noNe
 
 
 if __name__ == "__main__":
-	"""Batch multiprocessing loop"""
+	"""Start the experiment function with different parameters"""
 
-	p_list = []
+	# Get MPI info
+	comm = MPI.COMM_WORLD
+	rank = comm.Get_rank()
+	size = comm.Get_size()
+	machine = platform.node()	
 
-	for i in range(20):
-		fileName = "Process-" + str(i+1)
-		p = Process(target=experiment, args=(fileName, ), name="P-" + str(i+1))
-		p.start()
-		p_list.append(p)
-		
-	for p in p_list:
-		p.join()
+	# Print machine info	
+	print("\n == Robot Training Experiment with Multiprocessing == ")
+	print("\n  Date: " + str(datetime.datetime.now()))
+	print("  Machine: " + machine + " (" + str(rank+1) + "/" + str(size) + ")")
+	print("  OS: " + str(platform.system()) + " version " + str(platform.release()))
+        print("  Python version: " + str(platform.python_version ()+ "\n"))
 
-
-
+	# Do experiment
+	fileName = "Machine-" + str(rank)
+	experiment(fileName_=fileName)

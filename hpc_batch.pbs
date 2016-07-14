@@ -1,18 +1,26 @@
 #!/bin/bash
 
 # Options
-#PBS -o results.$PBS_JOBID
-#PBS -e results.$PBS_JOBID
-#PBS -l walltime=0:01:00
+#PBS -N ParetoJob
+#PBS -o stdout.$PBS_JOBID
+#PBS -e stderr.$PBS_JOBID
+#PBS -l walltime=0:15:00
+#PBS -l nodes=5:ppn=2
 #PBS -m e
 
 # Environment
 cd $PBS_O_WORKDIR
 echo "== Start HPC Job =="
 date
+n_proc=$( cat $PBS_NODEFILE  |  wc  -l )
+echo "MPI Nodes number= ${n_proc}"
+module load Python/2.7.11-intel-2016a
+module load matplotlib/1.5.1-intel-2016a-Python-2.7.11-freetype-2.6.3
+module load freetype/2.6.3-intel-2016a
+module load mpi4py
 
 # Start script
-./hpc_batch.py
+mpirun -np $n_proc ./hpc_batch.py
 
 # Finalize
 echo "== End HPC Job =="
