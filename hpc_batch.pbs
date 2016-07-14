@@ -20,7 +20,7 @@ module load freetype/2.6.3-intel-2016a
 module load mpi4py
 
 # Start script
-mpirun -np $n_proc ./hpc_batch.py
+mpirun -np $n_proc ./hpc_batch.py pareto
 
 # Finalize
 echo "== End HPC Job =="
