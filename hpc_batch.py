@@ -13,7 +13,7 @@ import sys
 import datetime
 
 def experiment(fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
-	simTimeStep_=0.005, simTime_=0.5, perfMetr_="dist", controlPlot_=False, maxIter_=5, maxOmega=10, \
+	simTimeStep_=0.005, simTime_=20, perfMetr_="dist", controlPlot_=False, maxIter_=5000, maxOmega=10, \
 	maxAmplitude=0.25):
 	"""Start a standard experiment"""
 
@@ -65,45 +65,46 @@ if __name__ == "__main__":
 	print("  Argument List: " +  str(sys.argv) + "\n")
 
 	# Do experiment
-	if sys.argv[1].lower() == "pareto":
-		#  Simulate different couple of amplitude and omega to create a pareto curve
-		arg_list = [[1, 0.01],
-					[1, 0.02],
-					[1, 0.05],
-					[1, 0.1],
-					[1, 0.2],
-					[1, 0.5],
-					[2, 0.01],
-					[2, 0.02],
-					[2, 0.05],
-					[2, 0.1],
-					[2, 0.2],
-					[2, 0.5],
-					[5, 0.01],
-					[5, 0.02],
-					[5, 0.05],
-					[5, 0.1],
-					[5, 0.2],
-					[5, 0.5],
-					[10, 0.01],
-					[10, 0.02],
-					[10, 0.05],
-					[10, 0.1],
-					[10, 0.2],
-					[10, 0.5],
-					[3, 5]]
-		fileName = "Machine-" + str(rank)
-		n_iteration = int(math.ceil(len(arg_list)/float(size)))
+	if len(sys.argv) > 1:
+		if sys.argv[1].lower() == "pareto":
+			#  Simulate different couple of amplitude and omega to create a pareto curve
+			arg_list = [[1, 0.01],
+						[1, 0.02],
+						[1, 0.05],
+						[1, 0.1],
+						[1, 0.2],
+						[1, 0.5],
+						[2, 0.01],
+						[2, 0.02],
+						[2, 0.05],
+						[2, 0.1],
+						[2, 0.2],
+						[2, 0.5],
+						[5, 0.01],
+						[5, 0.02],
+						[5, 0.05],
+						[5, 0.1],
+						[5, 0.2],
+						[5, 0.5],
+						[10, 0.01],
+						[10, 0.02],
+						[10, 0.05],
+						[10, 0.1],
+						[10, 0.2],
+						[10, 0.5],
+						[3, 5]]
+			fileName = "Machine-" + str(rank)
+			n_iteration = int(math.ceil(len(arg_list)/float(size)))
 
-		# Simulate multiple time if the number of cores does not correspond to number of points
-		for i in range(n_iteration):
-			index = i * size + rank
-			if index < len(arg_list):
-				print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
-					" -- Experiment " + str(index+1) + " with Omega=" + \
-					str(arg_list[index][0]) + " and Amplitude=" + str(arg_list[index][1]))
-				experiment(fileName_=fileName, folderName_="Pareto", \
-					maxOmega=arg_list[index][0], maxAmplitude=arg_list[index][1])
+			# Simulate multiple time if the number of cores does not correspond to number of points
+			for i in range(n_iteration):
+				index = i * size + rank
+				if index < len(arg_list):
+					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
+						" -- Experiment " + str(index+1) + " with Omega=" + \
+						str(arg_list[index][0]) + " and Amplitude=" + str(arg_list[index][1]))
+					experiment(fileName_=fileName, folderName_="Pareto", \
+						maxOmega=arg_list[index][0], maxAmplitude=arg_list[index][1])
 
 	else:
 		# Simulate a pool of CMA otpimization with the same arguments
