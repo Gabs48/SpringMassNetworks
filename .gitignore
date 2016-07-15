@@ -1,8 +1,10 @@
 # Ignore compiled python file
 *.pyc
 
-# Ignore Data folder
+# Ignore Data folder and files
 Data
+*.eps
+*.mp4
 
 # Ignore edited files
 *.py~
