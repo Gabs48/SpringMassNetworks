@@ -7,7 +7,7 @@ import matplotlib.cm as cmx
 import os
 import itertools
 from robot import Robot
-from utils import SpaceList, Plot, LinearMap, NeuralNetwork, num2str
+from utils import SpaceList, Plot, LinearMap, NeuralNetwork, num2str, mkdir_p
 
 class Plotter(object):
 	""" create instance with plotting properties 
@@ -52,7 +52,7 @@ class Plotter(object):
 				self.frame = 0
 				if os.name == "posix":
 					directory = os.getenv("HOME") + '/.temp'
-					os.mkdir(directory)
+					mkdir_p(directory)
 					self.IMGname =  directory + '_tmp%04d.png'
 				else:
 					self.IMGname = 'temp/_tmp%04d.png'

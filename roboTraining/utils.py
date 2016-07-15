@@ -159,6 +159,17 @@ def ceilToRoundNumber(number):
 	base =  10 * int(np.log10(number))
 	return int(np.ceil(number / base) * base)
 
+def mkdir_p(path):
+	"""Method to create a directory only if it does not already exists (tested only on linux)"""
+
+	try:
+		os.makedirs(path)
+	except OSError as exc:  # Python >2.5
+		if exc.errno == errno.EEXIST and os.path.isdir(path):
+			pass
+		else:
+			raise
+
 class Save(object):
 	""" general class for saving"""
 	configname = 'config'
