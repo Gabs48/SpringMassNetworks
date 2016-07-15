@@ -1,4 +1,5 @@
-﻿import numpy as np
+﻿import csv
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 from mpl_toolkits.mplot3d import Axes3D
@@ -10,7 +11,7 @@ import matplotlib.cm as cmx
 import matplotlib.colorbar as clb
 import itertools
 import utils
-from utils import SpaceList
+from utils import SpaceList, list2SquareMatrix, list2PosMatrix, findIndex
 
 """robot_Simulation contains the required classes for defining and manipulating the essential robot parameters and states"""
 # EXTEND non linear springs morphology (refactor methods to morphology)
@@ -306,6 +307,7 @@ class SpringMorphology(Morphology):
 				environment = HardEnvironment()):
 		self.initialHeight = initialHeight  # height of the robot
 		self.noNeighbours = noNeighbours  # number of Neighbours
+		self.environment = environment
 		initialPos = self.generateShape(noNodes, initialHeight)
 		connections = self.generateConnections(noNodes)
 		super(SpringMorphology, self).__init__(initialPos, connections, noNodes = noNodes,
@@ -319,6 +321,73 @@ class SpringMorphology(Morphology):
 		
 		# set rest length
 		self.restLength = self.getRestLength(initialPos, connections)
+
+	def loadCSV(self, fileName):
+		"""Load the morphology from a config file"""
+
+		with open(fileName, 'r') as csvfile:
+			tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
+
+			# Get Nodes numbers
+			n_node_ind = findIndex(tab, "noNodes")
+			n_nodes = int(tab[n_node_ind[0]][n_node_ind[1] + 1])
+
+			# Get initialHeight
+			initialHeight_ind = findIndex(tab, "initialHeight")
+			initialHeight = int(tab[n_node_ind[0]][n_node_ind[1] + 1])
+
+			# Get noNeighbours
+			noNeighbours_ind = findIndex(tab, "noNeighbours")
+			noNeighbours = int(tab[n_node_ind[0]][n_node_ind[1] + 1])
+
+			# Get mass
+			mass_ind = findIndex(tab, "mass")
+			mass = int(tab[n_node_ind[0]][n_node_ind[1] + 1])
+
+			# Get spring list
+			spring_ind = findIndex(tab, "spring")
+			spring_list = []
+			for i in range(spring_ind[0] + 1, spring_ind[0] + n_nodes + 1):
+				for j in range(spring_ind[1] + 1, spring_ind[1] + n_nodes + 1):
+					spring_list.append(float(tab[i][j]))
+
+			# Get damping list
+			damping_ind = findIndex(tab, "damping")
+			damping_list = []
+			for i in range(damping_ind[0] + 1, damping_ind[0] + n_nodes + 1):
+				for j in range(damping_ind[1] + 1, damping_ind[1] + n_nodes + 1):
+					damping_list.append(float(tab[i][j]))
+
+			# Get restLength list
+			restLength_ind = findIndex(tab, "restLength")
+			restLength_list = []
+			for i in range(restLength_ind[0] + 1, restLength_ind[0] + n_nodes + 1):
+				for j in range(restLength_ind[1] + 1, restLength_ind[1] + n_nodes + 1):
+					restLength_list.append(float(tab[i][j]))
+
+			# Get connections list
+			connections_ind = findIndex(tab, "connections")
+			connections_list = []
+			for i in range(connections_ind[0] + 1, connections_ind[0] + n_nodes + 1):
+				for j in range(connections_ind[1] + 1, connections_ind[1] + n_nodes + 1):
+					connections_list.append(float(tab[i][j]))
+
+			# Get initialPos list
+			initialPos_ind = findIndex(tab, "initialPos")
+			initialPos_list = []
+			for i in range(initialPos_ind[0] + 2, initialPos_ind[0] + 4):
+				for j in range(initialPos_ind[1] + 2, initialPos_ind[1] + n_nodes + 2):
+					initialPos_list.append(float(tab[i][j]))
+
+			# Fill class variables
+			self.initialHeight = initialHeight
+			self.noNeighbours = noNeighbours
+			self.spring = list2SquareMatrix(spring_list)
+			self.damping = list2SquareMatrix(damping_list)
+			self.restLength = list2SquareMatrix(restLength_list)
+			super(SpringMorphology, self).__init__(SpaceList(list2PosMatrix(initialPos_list)), \
+				list2SquareMatrix(connections_list), noNodes=n_nodes, mass=mass, \
+				environment=self.environment)
 
 	def _connectionForce(self, state, modulatedRestLength):
 		""" calculate the forces acting due to the springs, return x,y spring force"""
@@ -729,6 +798,42 @@ class SineControl(TimeControl):
 		self.amplitude = morph.connectionParameterMatrix(amplitude)
 		self.phase = morph.connectionParameterMatrix(phase)
 		self.omega = morph.connectionParameterMatrix(omega)
+
+	def loadCSV(self, fileName):
+		"""Load the controller from a config file"""
+
+		with open(fileName, 'r') as csvfile:
+			tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
+
+			# Get Nodes numbers
+			n_node_ind = findIndex(tab, "noNodes")
+			n_nodes = int(tab[n_node_ind[0]][n_node_ind[1] + 1])
+
+			# Get amplitude list
+			amplitude_ind = findIndex(tab, "amplitude:")
+			amplitude_list = []
+			for i in range(amplitude_ind[0] + 1, amplitude_ind[0] + n_nodes + 1):
+				for j in range(amplitude_ind[1] + 1, amplitude_ind[1] + n_nodes + 1):
+					amplitude_list.append(float(tab[i][j]))
+
+			# Get phase list
+			phase_ind = findIndex(tab, "phase:")
+			phase_list = []
+			for i in range(phase_ind[0] + 1, phase_ind[0] + n_nodes + 1):
+				for j in range(phase_ind[1] + 1, phase_ind[1] + n_nodes + 1):
+					phase_list.append(float(tab[i][j]))
+
+			# Get omega list
+			omega_ind = findIndex(tab, "omega:")
+			omega_list = []
+			for i in range(omega_ind[0] + 1, omega_ind[0] + n_nodes + 1):
+				for j in range(omega_ind[1] + 1, omega_ind[1] + n_nodes + 1):
+					omega_list.append(float(tab[i][j]))
+
+			# Fill class variables
+			self.amplitude = list2SquareMatrix(amplitude_list)
+			self.phase = list2SquareMatrix(phase_list)
+			self.omega = list2SquareMatrix(omega_list)
 
 	def getParams(self):
 		""" Get the robot parameters: amplitude, phase and modulation speed"""

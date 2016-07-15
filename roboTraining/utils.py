@@ -1,11 +1,14 @@
-﻿import itertools
+﻿import errno
+import itertools
 import numpy as np
 from datetime import datetime
 import os
 import matplotlib
 matplotlib.use('Agg')
-import neurolab as nl
 import matplotlib.pyplot as plt
+import math
+import neurolab as nl
+
 
 """ extra functionalities needed by other modules in the roboTraining package """
 
@@ -14,6 +17,21 @@ CTE_POWERPOINT = False # Whether to save figures for Latex documents or powerpoi
 def isCallable(obj):
 	""" Returns boolean whether object can be called (like a function)"""
 	return hasattr(obj, '__call__')
+
+def findIndex(tab, name):
+	"""Find an index in a tab"""
+
+	i = 0;
+	for row in tab:
+		j = 0;
+		for cell in row:
+			if cell.find(name) != -1:
+				index = [i, j]
+				break
+			j += 1
+		i += 1
+
+	return index
 
 def connections2Array(matrix, connections):
 	""" Extract the parameter values from matrix
@@ -48,6 +66,46 @@ def array2Connections(array, connections):
 	matrix[upperTriangle] = longArray
 	matrix += matrix.T
 	return matrix
+
+def list2PosMatrix(liste):
+	""" Reconstruct the position matrix, whose parameter values reside in the list
+
+	:parameters:
+		- liste: list
+			contains all the value in a 1D list (row after row)
+	"""
+
+	assert len(liste) % 2 == 0, 'The length of the list should be a multiple of 2'
+
+	array = np.array(liste)
+	matrix = np.reshape(array, (-1, 2))
+
+	return matrix.T
+
+def list2SquareMatrix(liste):
+	""" Reconstruct the square matrix, whose parameter values reside in the list
+
+	:parameters:
+		- liste: list
+			contains all the value in a 1D list (row after row)
+	"""
+
+	assert isSquare(len(liste)), 'The length of the list should be a perfect square number'
+
+	length = int(math.sqrt(len(liste)))
+	array = np.array(liste)
+	matrix = np.reshape(array, (-1, length))
+
+	return matrix
+
+def isSquare(posInt):
+	x = posInt // 2
+	seen = set([x])
+	while x * x != posInt:
+		x = (x + (posInt // x)) // 2
+		if x in seen: return False
+		seen.add(x)
+	return True
 
 def num2str(num):
 	""" convert a number into a short string"""

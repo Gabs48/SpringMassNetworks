@@ -1,4 +1,5 @@
 ﻿import abc
+import csv
 import os.path
 import sqlite3
 import numpy as np
@@ -69,6 +70,25 @@ class TrainingScheme(object):
 		for i in range(len(self.trainableParams)):
 			matrix[i,:]=self.trainableParams[i].normalize(matrix[i,:])
 		return matrix
+
+	def loadCSV(self, fileName, index):
+		"""Load the training parameters from a config file and its index"""
+
+		with open(fileName, 'r') as csvfile:
+			tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
+			
+			ii = 0
+			for i in range(5 * index + 2, 5 * index + 5) :
+				if ii == 0:
+					matrix = np.array([float(it) for it in tab[i]])
+				if ii == 1:
+					matrix = np.vstack((matrix, np.array([float(it) for it in tab[i]])))
+				if ii == 2:
+					matrix = np.vstack((matrix, np.array([float(it) for it in tab[i]])))
+				ii += 1
+
+		return matrix
+
 
 	def normalizedMatrix2robot(self,matrix,robot):
 		""" --- update the robot to a matrix of normalized parameters together with a list of parameters  ---
