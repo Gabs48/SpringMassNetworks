@@ -47,8 +47,24 @@ def experiment(fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, no
 	train.save()
 
 
+def createParetoVal():
+	"""Return a 2D list of Amplitude and Omega couple for drawing a pareto curve"""
+
+	omega = [1, 2, 5, 10, 20, 40]
+	amplitude =  np.linspace(0.001, 1, 20).tolist()
+	liste = []
+
+	for om in omega:
+		for am in amplitude:
+			liste.append([om, am])
+
+	return liste
+
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
+
+	trainingIt = 5000
+	simTime = 25
 
 	# Get MPI info
 	comm = MPI.COMM_WORLD
@@ -66,35 +82,17 @@ if __name__ == "__main__":
 
 	# Do experiment
 	if len(sys.argv) > 1:
+
+		#  Simulate different couple of amplitude and omega to create a pareto curve
 		if sys.argv[1].lower() == "pareto":
-			#  Simulate different couple of amplitude and omega to create a pareto curve
-			arg_list = [[1, 0.01],
-						[1, 0.02],
-						[1, 0.05],
-						[1, 0.1],
-						[1, 0.2],
-						[1, 0.5],
-						[2, 0.01],
-						[2, 0.02],
-						[2, 0.05],
-						[2, 0.1],
-						[2, 0.2],
-						[2, 0.5],
-						[5, 0.01],
-						[5, 0.02],
-						[5, 0.05],
-						[5, 0.1],
-						[5, 0.2],
-						[5, 0.5],
-						[10, 0.01],
-						[10, 0.02],
-						[10, 0.05],
-						[10, 0.1],
-						[10, 0.2],
-						[10, 0.5],
-						[3, 5]]
+
+			# Get arg list and estimate iteration number and time
+			arg_list = createParetoVal()
 			fileName = "Machine-" + str(rank)
 			n_iteration = int(math.ceil(len(arg_list)/float(size)))
+			print("  Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
+				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
+				"{:.2f} hours \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
 
 			# Simulate multiple time if the number of cores does not correspond to number of points
 			for i in range(n_iteration):
@@ -103,8 +101,8 @@ if __name__ == "__main__":
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 						" -- Experiment " + str(index+1) + " with Omega=" + \
 						str(arg_list[index][0]) + " and Amplitude=" + str(arg_list[index][1]))
-					experiment(fileName_=fileName, folderName_="Pareto", \
-						maxOmega=arg_list[index][0], maxAmplitude=arg_list[index][1])
+					experiment(fileName_=fileName, folderName_="Pareto", maxOmega=arg_list[index][0], \
+						simTime_=simTime, maxIter_=trainingIt,  maxAmplitude=arg_list[index][1])
 
 	else:
 		# Simulate a pool of CMA otpimization with the same arguments
