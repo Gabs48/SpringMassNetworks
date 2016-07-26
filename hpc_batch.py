@@ -97,7 +97,7 @@ def createParetoVal():
 def createSimTimeVal():
 	"""Return a 2D list of Simulation time and optimization methdd"""
 
-	st = [0.5, 1, 2, 5, 10, 20, 50, 100]
+	st = [0.5, 1, 2, 5, 10, 20, 25, 50]
 	opt =  ["CMA", "Genetic", "Random"]
 	liste = []
 
@@ -161,8 +161,11 @@ if __name__ == "__main__":
 			fileName = "Machine-" + str(rank)
 			n_iteration = int(math.ceil(len(arg_list)/float(size)))
 			time = 0
-			for i in arg_list:
-				time += float(i[0]) / 20 * trainingIt * n_iteration / 3600
+			for i in range(n_iteration):
+				index = i * size + rank
+				if index < len(arg_list):
+					time += float(arg_list[index][0]) / 20 * trainingIt * n_iteration / 3600
+					print("Time value: " + str(time))
 			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
 				"{:.2f} hours == \n".format(time) )
