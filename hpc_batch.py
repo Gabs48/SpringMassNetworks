@@ -18,7 +18,7 @@ class Experiment(object):
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="dist", controlPlot_=False, maxIter_=5000, maxOmega_=10, \
-		maxAmplitude_=0.25):
+		optMethod_="CMA", maxAmplitude_=0.25, popSize_=3):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
@@ -33,7 +33,10 @@ class Experiment(object):
 		self.controlPlot = controlPlot_
 		self.maxIter = maxIter_
 		self.maxOmega = maxOmega_
+		self.optMethod = optMethod_
 		self.maxAmplitude = maxAmplitude_
+		self.popSize = popSize_
+		self.noGen = int(self.maxIter / self.popSize)
 
 	def run(self):
 		"""Run the experiment"""
@@ -54,7 +57,13 @@ class Experiment(object):
 		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
 
 		saver = Save(None, self.fileName, self.folderName)
-		train = CMATraining(trainscheme, robot, simulenv, saver=saver, maxIter=self.maxIter)
+		if self.optMethod == "CMA":
+			train = CMATraining(trainscheme, robot, simulenv, saver=saver, maxIter=self.maxIter)
+		elif self.optMethod == "Genetic":
+			train = GeneticTraining(trainscheme, robot, simulenv, saver=saver, populationSize=self.popSize,\
+				noGenerations=self.noGen)
+		else:
+			train = RandomTraining(trainscheme, robot, simulenv, saver=saver, noInstances=self.maxIter)
 
 		# Perform optimization
 		param, score, t_tot = train.run() 
@@ -68,8 +77,8 @@ class Experiment(object):
 			" -- Total training time: " + "{:.1f}".format(t_tot)  + " s")
 		print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 			" -- Best score (" + self.perfMetr + "): {:.2f}".format(score)  + "\n")
-		print(" == Experiment finished with the following parameters == \n\n  " + str(self.__dict__) + "\n")
 		train.save()
+		print(" == Experiment finished with the following parameters == \n\n  " + str(self.__dict__) + "\n")
 
 
 def createParetoVal():
@@ -82,6 +91,19 @@ def createParetoVal():
 	for om in omega:
 		for am in amplitude:
 			liste.append([om, am])
+
+	return liste
+
+def createSimTimeVal():
+	"""Return a 2D list of Simulation time and optimization methdd"""
+
+	st = [0.5, 1, 2, 5, 10, 20, 50, 100]
+	opt =  ["CMA", "Genetic", "Random"]
+	liste = []
+
+	for s in st:
+		for o in opt:
+			liste.append([s, o])
 
 	return liste
 
@@ -109,7 +131,7 @@ if __name__ == "__main__":
 	# Do experiment
 	if len(sys.argv) > 1:
 
-		#  Simulate different couple of amplitude and omega to create a pareto curve
+		#  Different couple of amplitude and omega to create a pareto curve
 		if sys.argv[1].lower() == "pareto":
 
 			# Get arg list and estimate iteration number and time
@@ -118,7 +140,7 @@ if __name__ == "__main__":
 			n_iteration = int(math.ceil(len(arg_list)/float(size)))
 			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
-				"{:.2f} hours \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600) + " == ")
+				"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
 
 			# Simulate multiple time if the number of cores does not correspond to number of points
 			for i in range(n_iteration):
@@ -130,8 +152,34 @@ if __name__ == "__main__":
 					e = Experiment(fileName_=fileName, folderName_="Pareto", maxOmega_=arg_list[index][0], \
 						simTime_=simTime, maxIter_=trainingIt,  maxAmplitude_=arg_list[index][1])
 					e.run()
+
+		#  Different couple of simulation time and optimization methods
+		if sys.argv[1].lower() == "simtime":
+
+			# Get arg list and estimate iteration number and time
+			arg_list = createSimTimeVal()
+			fileName = "Machine-" + str(rank)
+			n_iteration = int(math.ceil(len(arg_list)/float(size)))
+			time = 0
+			for i in arg_list:
+				time += float(i[0]) / 20 * trainingIt * n_iteration / 3600
+			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
+				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
+				"{:.2f} hours == \n".format(time) )
+
+			# Simulate multiple time if the number of cores does not correspond to number of points
+			for i in range(n_iteration):
+				index = i * size + rank
+				if index < len(arg_list):
+					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
+						" -- Experiment " + str(index+1) + " with Omega=" + \
+						str(arg_list[index][0]) + " and Amplitude=" + str(arg_list[index][1]))
+					e = Experiment(fileName_=fileName, folderName_="SimTime", simTime_=arg_list[index][0],\
+					maxIter_=trainingIt, optMethod_=arg_list[index][1])
+					e.run()
+
 	else:
-		# Simulate a pool of CMA otpimization with the same arguments
+		# Pool of CMA otpimization with the same argument list
 		print(" == Running " +  str(size) + " experiments on " + str(size) + \
 			" processors: 1 optimization expected in approximately " + \
 			"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt / 3600))

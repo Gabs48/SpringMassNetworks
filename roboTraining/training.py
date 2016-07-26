@@ -278,10 +278,14 @@ class RandomTraining(Training):
 
 	def run(self):
 		""" run the  training algorithm"""
+
+		t_init = time.time()
 		for i in range( self.noInstances):
 			param = np.random.rand(*self.shapeParamList)
 			self.evaluateParam(param)
-		return self.bestParameters, self.optimalscore
+
+		t_tot = time.time() - t_init
+		return self.bestParameters, self.optimalscore, t_tot
 
 class GeneticTraining(Training):
 	"""" optimize parameters lists using Genetic Algorithms"""
