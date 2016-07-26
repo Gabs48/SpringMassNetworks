@@ -18,7 +18,7 @@ class Experiment(object):
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="dist", controlPlot_=False, maxIter_=5000, maxOmega_=10, \
-		optMethod_="CMA", maxAmplitude_=0.25, popSize_=3):
+		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
