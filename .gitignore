@@ -3,6 +3,7 @@
 
 # Ignore Data folder and files
 Data
+*.png
 *.eps
 *.mp4
 
@@ -12,3 +13,5 @@ Data
 # Ignore vlaams HPC files
 *.vsc
 
+# Ignore filesystem browser files
+.directory
