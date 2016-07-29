@@ -21,6 +21,7 @@ def isCallable(obj):
 def findIndex(tab, name):
 	"""Find an index in a tab"""
 
+	index = [-1, -1]
 	i = 0;
 	for row in tab:
 		j = 0;
@@ -78,9 +79,9 @@ def list2PosMatrix(liste):
 	assert len(liste) % 2 == 0, 'The length of the list should be a multiple of 2'
 
 	array = np.array(liste)
-	matrix = np.reshape(array, (-1, 2))
+	matrix = np.reshape(array, (2, -1))
 
-	return matrix.T
+	return matrix
 
 def list2SquareMatrix(liste):
 	""" Reconstruct the square matrix, whose parameter values reside in the list
@@ -361,7 +362,7 @@ class SpaceList(object):
 
 	def ground(pos, speed):
 		for i in xrange(pos.getnoNodes()):
-			if pos.matrix[1,i] <= 0: # Y component goes below the ground plane
+			if pos.matrix[1,i] < 0: # Y component goes below the ground plane
 				pos.matrix[1,i]  =0 
 				speed.matrix[:,i] = 0 
 
@@ -439,9 +440,12 @@ class Plot(object):
 		if legend:
 			if legendLocation == 'upper center':
 				bbox1 = 0.5
-				bbox2 = 1.06
+				bbox2 = 1
 			elif legendLocation == 'lower center':
 				bbox1 = 0.5
+				bbox2 = 0
+			elif legendLocation == 'lower right':
+				bbox1 = 1
 				bbox2 = 0
 			ax.legend(prop={'size':labelsize}, loc = legendLocation, bbox_to_anchor = (bbox1, bbox2), ncol = 3, fancybox = True, shadow = True)
 

@@ -334,15 +334,16 @@ class SpringMorphology(Morphology):
 
 			# Get initialHeight
 			initialHeight_ind = findIndex(tab, "initialHeight")
-			initialHeight = int(tab[n_node_ind[0]][n_node_ind[1] + 1])
+			initialHeight = int(tab[initialHeight_ind[0]][initialHeight_ind[1] + 1])
 
 			# Get noNeighbours
 			noNeighbours_ind = findIndex(tab, "noNeighbours")
-			noNeighbours = int(tab[n_node_ind[0]][n_node_ind[1] + 1])
+			noNeighbours = int(tab[noNeighbours_ind[0]][noNeighbours_ind[1] + 1])
+
 
 			# Get mass
 			mass_ind = findIndex(tab, "mass")
-			mass = int(tab[n_node_ind[0]][n_node_ind[1] + 1])
+			mass = float(tab[mass_ind[0]][mass_ind[1] + 1])
 
 			# Get spring list
 			spring_ind = findIndex(tab, "spring")
@@ -380,14 +381,15 @@ class SpringMorphology(Morphology):
 					initialPos_list.append(float(tab[i][j]))
 
 			# Fill class variables
+			#print self.__dict__
+			super(SpringMorphology, self).__init__(SpaceList(list2PosMatrix(initialPos_list)), \
+				list2SquareMatrix(connections_list), noNodes=n_nodes, mass=mass, \
+				environment=self.environment)
 			self.initialHeight = initialHeight
 			self.noNeighbours = noNeighbours
 			self.spring = list2SquareMatrix(spring_list)
 			self.damping = list2SquareMatrix(damping_list)
 			self.restLength = list2SquareMatrix(restLength_list)
-			super(SpringMorphology, self).__init__(SpaceList(list2PosMatrix(initialPos_list)), \
-				list2SquareMatrix(connections_list), noNodes=n_nodes, mass=mass, \
-				environment=self.environment)
 
 	def _connectionForce(self, state, modulatedRestLength):
 		""" calculate the forces acting due to the springs, return x,y spring force"""
@@ -944,13 +946,14 @@ class Robot(object):
 	def getProperty(self,name):
 		""" returns the array of the property with the required name 
 			(works only for properaties defined on internode connections"""
+
 		if (hasattr(self.morph,name)):
 			prop = getattr(self.morph, name)
 		elif (hasattr(self.control, name)):
 			prop = getattr(self.control, name)
 		else:
-			 raise AttributeError('The robot has no such property ('+ name + ')')
-			 prop = None
+			raise AttributeError('The robot has no such property ('+ name + ')')
+			prop = None
 		return utils.connections2Array(prop,self.morph.connections)
 
 	def setProperty(self,name,array):
@@ -962,7 +965,7 @@ class Robot(object):
 		elif (hasattr(self.control ,name)):
 			setattr(self.control, name,prop)
 		else:
-			 raise AttributeError('The robot has no such property ('+ name + ')')
+			raise AttributeError('The robot has no such property ('+ name + ')')
 		
 	def getParams(self):
 		""" Get the robot parameters: amplitude, phase and modulation speed"""
