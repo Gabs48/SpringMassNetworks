@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 from matplotlib.mlab import *
 import matplotlib.pyplot as plt
+from scipy.ndimage.filters import uniform_filter
 import sys,os
 
 class Analysis(object):
@@ -32,14 +33,25 @@ class Analysis(object):
 
 		self.y = []
 		self.x = []
+		self.x_av = []
+		self.x_std = []
+		self.x_sce_f = []
 		self.y_av = []
+		self.y_std_a = []
+		self.y_std_b = []
+		self.y_std = []
 		self.y_min = []
 		self.y_max = []
 		self.y_sce = []
 		self.y_sce_f = []
-		self.x_av = []
-		self.x_sce_f = []
-	
+		self.pc1 = []
+		self.pc2 = []
+		self.pc1_av = []
+		self.pc2_av = []
+		self.pc1_std = []
+		self.pc2_std = []
+		self.window = []
+
 	def _load_parameters(self):
 		"""Load the training parameters from all parameters files"""
 
@@ -60,6 +72,7 @@ class Analysis(object):
 				row_float = map(float, row)
 				params.append(row_float) # last iteration
 				self.parameters.append(params)
+				print(" -- Parameters of " + str(i+1) + "/" + str(len(self.filenames)) + " loaded -- ")
 
 	def _load_configs(self):
 		"""Load configuration parameters from all the config files"""
@@ -93,12 +106,19 @@ class Analysis(object):
 				else:
 					self.ps.append(float(tab[ps_ind[0]][ps_ind[1] + 1]))
 
-	def _compute_stats(self, window=None):
+	def _compute_stats(self, window=None, pca=False):
 		"""Compute statistics of list of scores"""
 
 		window_init = window
 
-		if not self.y_max:
+		if pca:
+			# Loading parameters
+			if not self.parameters:
+				print(" -- Loading parameter files -- ")
+				self._load_parameters()
+			print(" -- Parameter files loaded -- ")
+
+		if not self.y_max or pca:
 			i = 0
 			for y in self.y:
 
@@ -107,9 +127,19 @@ class Analysis(object):
 					window = len(self.x[i]) / 40
 				y_av = np.convolve(np.array(y), np.ones((window,))/window, mode='valid')
 				if window%2 == 0:
-					x_av = self.x[i][window/2:len(self.x[i])-window/2 + 1]
+					x_av = self.x[i][window/2:len(self.x[i])-window/2+1]
 				else:
 					x_av = self.x[i][window/2:len(self.x[i])-window/2]
+
+				# Compute std deviation
+				y_std = self._window_stdev(np.array(y), window=window)
+				x_std = self.x[i][window:len(self.x[i])-window+1]
+				if window%2 == 0:
+					y_std_a = y_av[window/2:len(y_av)-window/2] + y_std
+					y_std_b = y_av[window/2:len(y_av)-window/2] - y_std
+				else:
+					y_std_a = y_av[window/2:len(y_av)-window/2-1] + y_std
+					y_std_b = y_av[window/2:len(y_av)-window/2-1] - y_std
 
 				# Compute min and max
 				val_max = y[0]
@@ -126,18 +156,50 @@ class Analysis(object):
 
 				# Compute square convergence error
 				if window%2 == 0:
-					y_max_red = np.array(y_max[window/2:len(y_max)-window/2 + 1])
+					y_max_red = np.array(y_max[window/2:len(y_max)-window/2+1])
 				else:
 					y_max_red = np.array(y_max[window/2:len(y_max)-window/2])
 				y_sce = np.sqrt(((y_av - y_max_red) ** 2))/y_max_red
 				window2 = 2 * window
 				if window2%2 == 0:
-					x_sce_f = np.array(self.x[i][window2/2:len(y_sce)-window2/2 + 1])
+					x_sce_f = np.array(self.x[i][window2/2:len(y_sce)-window2/2+1])
 				else:
 					x_sce_f = np.array(self.x[i][window2/2:len(y_sce)-window2/2])
 				y_sce_f = np.convolve(np.array(y_sce), np.ones((window2,))/window2, mode='valid')
 
+				# Perform parameters PCA
+				if pca:
+					vec = np.array(self.parameters[i])
+					if vec.shape[0] > vec.shape[1]:
+						res = PCA(vec)
+						pc1 = res.Y[:,0]
+						pc2 = res.Y[:,1]
+					else:
+						pc1 = vec[:,0]
+						pc2 = vec[:,1]
+
+					pc1_av = np.convolve(pc1, np.ones((window,))/window, mode='valid')
+					pc2_av = np.convolve(pc2, np.ones((window,))/window, mode='valid')
+					if window%2 == 0:
+						pc1_std = pc1_av[window/2:len(pc1_av)-window/2]
+						pc2_std = pc2_av[window/2:len(pc2_av)-window/2]
+					else:
+						pc1_std = pc1_av[window/2:len(pc1_av)-window/2-1]
+						pc2_std = pc2_av[window/2:len(pc2_av)-window/2-1]
+
+					self.pc1.append(pc1)
+					self.pc2.append(pc2)
+					self.pc1_av.append(pc1_av)
+					self.pc2_av.append(pc2_av)
+					self.pc1_std.append(pc1_std)
+					self.pc2_std.append(pc2_std)
+
+				self.window.append(window)
 				self.y_av.append(y_av)
+				self.x_std.append(x_std)
+				self.y_std_a.append(y_std_a)
+				self.y_std_b.append(y_std_b)
+				self.y_std.append(y_std)
 				self.x_av.append(x_av)
 				self.y_max.append(y_max)
 				self.y_min.append(y_min)
@@ -163,8 +225,16 @@ class Analysis(object):
 		y_av = np.mean(matrix, axis=1)
 		x = np.array(range((y_av.size)))
 
-		print dim, ps, matrix.shape, y_min.shape, y_av.shape, y_max.shape, x.shape
 		return x, y_min, y_max, y_av
+
+	def _window_stdev(self, arr, window=50):
+		"""Compute std deviation of an array with a sliding window"""
+
+		c1 = uniform_filter(arr, window*2, mode='constant', origin=-window)
+		c2 = uniform_filter(arr*arr, window*2, mode='constant', origin=-window)
+		res = ((c2 - c1*c1)**.5)[:-window*2+1]
+
+		return res
 
 	def load(self):
 		"""Browse all folder and retrieve all scores. Then load configs and parameters"""
@@ -210,60 +280,7 @@ class Analysis(object):
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 		plt.close()
 
-	def plot_score_av(self, index=0, filename="results_score_av", title=None, show=False, save=True):
-		"""Plot average and max score evolution for a given file"""
-
-		if not self.y_max:
-			self._compute_stats()
-
-		print(" -- Printing score stats graph for file " + self.filenames[index])
-
-		fig, ax = Plot.initPlot()
-		for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
-			item.set_fontsize(17)
-
-		plt.plot(self.x[index], self.y_max[index] ,"r-", label="maximum")
-		#plt.plot(x, higherScore, "b--", label = num2str(100 * (1-p)) + "th percentile")
-		plt.plot(self.x_av[index], self.y_av[index], "g-", label="average score")
-		#plt.plot(x, lowerScore , "r--", label = num2str(100 * (p)) + "th percentile")
-		plt.plot(self.x[index], self.y_min[index], "b-", label="minimum")
-		if title != None:
-			plt.title(title)
-		else:
-			plt.title("Training max and average (optimum  = " + str(max(self.y[index])) + ")")
-		Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
-		plt.xlabel('Iteration')
-		plt.ylabel('Distance Traveled')
-		if show: plt.show()
-		if save: plt.savefig(filename + ".png", format='png', dpi=300)
-		plt.close()
-
-	def plot_conv_err(self, index=0, filename="results_score_conv_err", title=None, window=None, show=False, save=True):
-		"""Plot average and max score evolution for a given file"""
-
-		if not self.y_max:
-			self._compute_stats()
-
-		print(" -- Printing convergence error graph for file " + self.filenames[index])
-
-		fig, ax = Plot.initPlot()
-		for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
-			item.set_fontsize(17)
-
-		plt.plot(self.x_av[index], self.y_sce[index] ,"b-", linewidth=0.2, label="Convergence error")
-		plt.plot(self.x_sce_f[index], self.y_sce_f[index] ,"r-", linewidth=0.8, label="Averaged convergence error")
-		Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='upper center')
-		if title != None:
-			plt.title(title)
-		else:
-			plt.title("Training convergence error (optimum  = " + str(max(self.y[index])) + ")")
-		plt.xlabel('Iteration')
-		plt.ylabel('Convergence square error')
-		if show: plt.show()
-		if save: plt.savefig(filename + ".png", format='png', dpi=300)
-		plt.close()
-
-	def plot_gen(self, index=0, filename="results_generations", title=None, show=False, save=True):
+	def plot_gen(self, index=0, filename="results_gen", title=None, show=False, save=True):
 		"""Plot scores rearranged in generations for a given file"""
 
 		if self.opt_type[index] != "RANDOM":
@@ -294,6 +311,115 @@ class Analysis(object):
 			print(" -- Can't print generation scores for file " + self.filenames[index] + \
 				" with "+ self.opt_type[index] + " optimization type.")
 
+	def plot_score_av(self, index=0, filename="results_score_av", title=None, show=False, save=True):
+		"""Plot average and max score evolution for a given file"""
+
+		if not self.y_max:
+			self._compute_stats()
+
+		print(" -- Printing score stats graph for file " + self.filenames[index])
+
+		fig, ax = Plot.initPlot()
+		for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+			item.set_fontsize(17)
+
+		plt.plot(self.x[index], self.y_min[index] ,"r-", label="maximum")
+		plt.plot(self.x_std[index], self.y_std_a[index] ,"r--", linewidth=0.2, label="max std dev")
+		plt.plot(self.x_av[index], self.y_av[index], "g-", label="average score")
+		plt.plot(self.x_std[index], self.y_std_b[index] ,"b--", linewidth=0.2, label="min std dev")
+		plt.plot(self.x[index], self.y_max[index], "b-", label="minimum")
+		if title != None:
+			plt.title(title)
+		else:
+			plt.title("Training max and average (optimum  = " + str(max(self.y[index])) + ")")
+		Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
+		plt.xlabel('Iteration')
+		plt.ylabel('Distance Traveled')
+		if show: plt.show()
+		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		plt.close()
+
+	def plot_conv_err(self, index=0, filename="results_score_conv_err", title=None, window=None, show=False, save=True):
+		"""Plot convergence error for a given file"""
+
+		if not self.y_max:
+			self._compute_stats()
+
+		print(" -- Printing convergence error graph for file " + self.filenames[index])
+
+		fig, ax = Plot.initPlot()
+		for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+			item.set_fontsize(17)
+
+		plt.plot(self.x_av[index], self.y_sce[index] ,"b-", linewidth=0.2, label="Convergence error")
+		plt.plot(self.x_sce_f[index], self.y_sce_f[index] ,"r-", linewidth=0.8, label="Averaged convergence error")
+		Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='upper center')
+		if title != None:
+			plt.title(title)
+		else:
+			plt.title("Training convergence error (optimum  = " + str(max(self.y[index])) + ")")
+		plt.xlabel('Iteration')
+		plt.ylabel('Convergence square error')
+		if show: plt.show()
+		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		plt.close()
+
+	def plot_state_space(self, index=0, filename="results_state_space", title=None, show=False, save=True):
+		"""Plot the score evolution in a state space composed by the two first PC to 
+		get a glance at the dynamics of the problem"""
+
+		if not self.parameters:
+			self._compute_stats(pca=True)
+
+		# Get windows and gap sizes
+		n = self.pc1[index].shape[0]
+		n_av = self.pc1_av[index].shape[0]
+		if self.window[index] > n:
+			window = n
+		else:
+			window = self.window[index]
+		gap = n / window
+		gap_av = n_av / window
+
+		# Plot full trajectories
+		fig, ax = Plot.initPlot(proj="3d")
+		for j in xrange(1, window):
+			ax.plot(self.pc1[index][j*gap:(j+1)*gap], self.pc2[index][j*gap:(j+1)*gap], self.y[index][j*gap:(j+1)*gap], \
+				c=plt.cm.jet(1.*j/window), linewidth=0.2, label="PCA trajectory")
+		if title != None:
+			plt.title(title)
+		else:
+			plt.title("Score in fct of the 2 first PC parameters with " + self.opt_type[index] + " training and " + \
+				num2str(self.sim_time[index]) + " s simulations")
+		ax.set_xlabel('PC 1')
+		ax.set_ylabel('PC 2')
+		ax.set_zlabel('Score')
+		print(" -- Trajectory image "+ str(index+1) + "/" + str(len(self.y)) + " generated -- ")
+		if show: plt.show(block=True)
+		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		plt.close()
+
+		# Plot averaged trajectories
+		fig2, ax2 = Plot.initPlot(proj="3d")
+		for j in xrange(1, window):
+			ax2.plot(self.pc1_av[index][j*gap_av:(j+1)*gap_av], self.pc2_av[index][j*gap_av:(j+1)*gap_av], \
+				self.y_av[index][j*gap_av:(j+1)*gap_av], ".-", c=plt.cm.jet(1.*j/window), \
+				linewidth=1, markersize=0.4, label="PCA average")
+		ax2.plot(self.pc1_std[index], self.pc2_std[index], self.y_std_a[index],	"r-", linewidth=0.4, label="PCA max std")
+		ax2.plot(self.pc1_std[index], self.pc2_std[index], self.y_std_b[index],	"b-", linewidth=0.4, label="PCA min std")
+		if title != None:
+			plt.title("Averaged " + title)
+		else:
+			plt.title("Averaged score in fct of the 2 first PC parameters with " + self.opt_type[index] + " training and " + \
+				num2str(self.sim_time[index]) + " s simulations")
+		ax.set_xlabel('PC 1')
+		ax.set_ylabel('PC 2')
+		ax.set_zlabel('Average score')
+		print(" -- Averaged trajectory image " + str(index+1) + "/" + str(len(self.y)) + " generated -- ")
+		if show: plt.show(block=True)
+		if save: plt.savefig(filename + "_av.png", format='png', dpi=300)
+		plt.close()
+
 	def plot_all_scores(self, filename="results_score", show=False, save=True):
 		"""Plot score evolution for a all files. This can take several minutes"""
 
@@ -303,7 +429,7 @@ class Analysis(object):
 			i += 1
 
 	def plot_all_gens(self, filename="results_gen", show=False, save=True):
-		"""Plot score evolution reaaranged in generations for a all files."""
+		"""Plot score evolution rearranged in generations for all files."""
 
 		i = 0
 		for y in self.y:
@@ -311,6 +437,7 @@ class Analysis(object):
 			i += 1
 
 	def plot_all_scores_av(self, filename="results_score_av", show=False, save=True):
+		"""Plot average and max score evolution for a all files."""
 
 		i = 0
 		for y in self.y:
@@ -318,46 +445,23 @@ class Analysis(object):
 			i += 1
 
 	def plot_all_conv_errs(self, filename="results_score_conv_err", show=False, save=True):
+		"""Plot convergence error for all files"""
 
 		i = 0
 		for y in self.y:
-			self.plot_score_conv_err(index=i, filename=filename + "_" + str(i), show=show, save=save)
+			self.plot_conv_err(index=i, filename=filename + "_" + str(i), show=show, save=save)
 			i += 1
 
-	def plot_state_space(self, filename="results_state_space", show=False, save=True):
+	def plot_all_state_spaces(self, filename="results_state_space", show=False, save=True):
 		"""Plot the score evolution in a state space composed by the two first PC to 
 		get a glance at the dynamics of the problem"""
-		
-		if not self.parameters:
-			print(" -- Loading parameter files -- ")
-			self._load_parameters()
-		print(" -- Parameter files loaded -- ")
 
-		for i, y in enumerate(self.y):
+		print(" -- Printing score evolution in principal components parameter space. This can take a while -- ")
 
-			# Compute PCA
-			vec = np.array(self.parameters[i])
-
-			if vec.shape[0] > vec.shape[1]:
-				res = PCA(vec)
-				pc1 = res.Y[:,0]
-				pc2 = res.Y[:,1]
-			else:
-				pc1 = vec[:,0]
-				pc2 = vec[:,1]
-
-			# Get stats
-			n = pc1.shape[0]
-
-			# Plot
-			fig, ax = Plot.initPlot(proj="3d")
-			ax.plot_trisurf(pc1, pc2, np.array(y), label="PCA trajectory", cmap=matplotlib.cm.jet, linewidth=0.2)#c=y, s=10, cmap=matplotlib.cm.jet,
-			plt.title("Score evolution in the two first principal components of the trained variable space")
-			ax.set_xlabel('PC 1')
-			ax.set_ylabel('PC 2')
-			ax.set_zlabel('Score')
-			if show: plt.show(block=True)
-			if save: plt.savefig(filename + "_" + str(i) + ".png", format='png', dpi=300)
+		i = 0
+		for y in self.y:
+			self.plot_state_space(index=i, filename=filename + "_" + str(i), show=show, save=save)
+			i += 1
 
 	def get_best_ind(self, index=None):
 		"""Return best individu score, file index and place index"""
@@ -453,12 +557,16 @@ class Analysis(object):
 				num2str(self.sim_time[i]) + " s simulations"
 			gen_title = "Generation evolution with " + self.opt_type[i] + " training and " + \
 				num2str(self.sim_time[i]) + " s simulations"
+			ss_title = "PC parameters evolution with " + self.opt_type[i] + " training and " + \
+				num2str(self.sim_time[i]) + " s simulations"
 			err_filename = folder + "err_" + ext
 			evo_filename = folder + "evol_" + ext
 			gen_filename = folder + "gen_" + ext
+			ss_filename = folder + "exp_" + ext
 			self.plot_score_av(index=i, filename=evo_filename, title=evo_title)
 			self.plot_conv_err(index=i, filename=err_filename, title=err_title)
 			self.plot_gen(index=i, filename=gen_filename, title=gen_title)
+			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
 			i += 1
 
 	def pareto(self, filename="results_pareto", show=False, save=True):
