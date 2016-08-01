@@ -4,7 +4,7 @@ from simulate import *
 from training import *
 from utils import *
 
-import jsonpickle
+# import jsonpickle
 import math
 from multiprocessing import *
 from mpi4py import MPI
@@ -68,21 +68,21 @@ class Experiment(object):
 		# Perform optimization
 		param, score, t_tot = train.run() 
 		bestRobot = trainscheme.normalizedMatrix2robot(train.bestParameters, robot)
-		print(train.bestParameters)
+		# print(train.bestParameters)
 		print(train.optimalscore)
 
-		pltt = Plotter(movie = True, plot = True, movieName = "Robot13April", plotCycle = 6, color=True)
-		simulEnv = SimulationEnvironment(timeStep = 1.0/200, simulationLength = 400, plot =  pltt) # 00
-		simul = VerletSimulation(simulEnv, robot)
-		print simul.runSimulation();
+		# pltt = Plotter(movie = True, plot = True, movieName = "Robot13April", plotCycle = 6, color=True)
+		# simulEnv = SimulationEnvironment(timeStep = 1.0/200, simulationLength = 400, plot =  pltt) # 00
+		# simul = VerletSimulation(simulEnv, robot)
+		# print simul.runSimulation();
 
-		jsonpickle.set_encoder_options('simplejson', sort_keys=True, indent=4)
-		with open("simulEnv_orig.json", 'wb') as f:
-			f.write(jsonpickle.encode(simulenv))
-			f.close()
-		with open("robot_orig.json", 'wb') as f:
-			f.write(jsonpickle.encode(robot))
-			f.close()
+		# jsonpickle.set_encoder_options('simplejson', sort_keys=True, indent=4)
+		# with open("simulEnv_orig.json", 'wb') as f:
+		# 	f.write(jsonpickle.encode(simulenv))
+		# 	f.close()
+		# with open("robot_orig.json", 'wb') as f:
+		# 	f.write(jsonpickle.encode(robot))
+		# 	f.close()
 
 		# Print and save results
 		comm = MPI.COMM_WORLD

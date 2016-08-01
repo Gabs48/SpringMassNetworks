@@ -3,7 +3,7 @@ from robot import *
 from simulate import *
 from training import *
 
-import jsonpickle
+# import jsonpickle
 import numpy as np
 import csv
 import matplotlib
