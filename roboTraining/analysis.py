@@ -8,6 +8,7 @@ import numpy as np
 import csv
 import matplotlib
 matplotlib.use("Agg")
+from matplotlib.mlab import *
 import matplotlib.pyplot as plt
 import sys,os
 
@@ -22,6 +23,7 @@ class Analysis(object):
 
 		self.scores = []
 		self.filenames = []
+		self.parameters = []
 		self.maxomega = []
 		self.maxampli = []
 		self.opt_type = []
@@ -37,51 +39,59 @@ class Analysis(object):
 		self.y_sce_f = []
 		self.x_av = []
 		self.x_sce_f = []
+	
+	def _load_parameters(self):
+		"""Load the training parameters from all parameters files"""
 
-	def load_scores(self):
-		"""Browse all folder and retrieve all scores"""
+		for i, f in enumerate(self.filenames):
+			with open(f.replace("score", "parameter"), 'r') as csvfile:
+				tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
+			
+				params = []
+				for j in range(len(tab)) :
+					if j%5 == 2:
+						row = tab[j]
+					if j%5 == 3 or j%5 == 4:
+						row.extend(tab[j])
+					if j%5 == 0 and j != 0:
+						row_float = map(float, row)
+						params.append(row_float)
 
-		for path, subdirs, files in os.walk(self.path):
-			for name in files:
-				if name.find("score") != -1 and os.path.splitext(name)[1] == ".csv":
-					with open(os.path.join(path, name), 'r') as csvfile:
-						tab = csv.reader(csvfile, delimiter=';', quotechar='|')
-						for row in tab:
-							self.scores.append(row)
-							self.filenames.append(os.path.join(path, name))
+				row_float = map(float, row)
+				params.append(row_float) # last iteration
+				self.parameters.append(params)
 
-				if name.find("config") != -1 and os.path.splitext(name)[1] == ".csv":
-					with open(os.path.join(path, name), 'r') as csvfile:
-						tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
+	def _load_configs(self):
+		"""Load configuration parameters from all the config files"""
 
-						# Find max omega and amplitudes
-						params_ind = findIndex(tab, "trainableParams:")
-						self.maxomega.append(float(tab[params_ind[0] + 3][params_ind[1] + 3]))
-						self.maxampli.append(float(tab[params_ind[0] + 9][params_ind[1] + 3]))
+		for f in self.filenames:
+			with open(f.replace("score", "config"), 'r') as csvfile:
+				tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
 
-						# Find the optimization type
-						rand_type_ind = findIndex(tab, "noInstances:")
-						cma_type_ind = findIndex(tab, "maxIter:")
-						if rand_type_ind != [-1, -1]:
-							self.opt_type.append("RANDOM")
-						elif cma_type_ind != [-1, -1]:
-							self.opt_type.append("CMA")
+				# Find max omega and amplitudes
+				params_ind = findIndex(tab, "trainableParams:")
+				self.maxomega.append(float(tab[params_ind[0] + 3][params_ind[1] + 3]))
+				self.maxampli.append(float(tab[params_ind[0] + 9][params_ind[1] + 3]))
 
-						# Find simulation time
-						ts_ind = findIndex(tab, "timeStep:")
-						sl_ind = findIndex(tab, "simulationLength:")
-						self.sim_time.append(float(tab[ts_ind[0]][ts_ind[1] + 1])*float(tab[sl_ind[0]][sl_ind[1] + 1]))
+				# Find the optimization type
+				rand_type_ind = findIndex(tab, "noInstances:")
+				cma_type_ind = findIndex(tab, "maxIter:")
+				if rand_type_ind != [-1, -1]:
+					self.opt_type.append("RANDOM")
+				elif cma_type_ind != [-1, -1]:
+					self.opt_type.append("CMA")
 
-						# Find population size
-						ps_ind = findIndex(tab, "popSize:")
-						if ps_ind == [-1, -1]:
-							self.ps.append(19)
-						else:
-							self.ps.append(float(tab[ps_ind[0]][ps_ind[1] + 1]))
+				# Find simulation time
+				ts_ind = findIndex(tab, "timeStep:")
+				sl_ind = findIndex(tab, "simulationLength:")
+				self.sim_time.append(float(tab[ts_ind[0]][ts_ind[1] + 1])*float(tab[sl_ind[0]][sl_ind[1] + 1]))
 
-		for y in self.scores:
-			self.y.append(map(float, y))
-			self.x.append(range((len(y))))
+				# Find population size
+				ps_ind = findIndex(tab, "popSize:")
+				if ps_ind == [-1, -1]:
+					self.ps.append(19)
+				else:
+					self.ps.append(float(tab[ps_ind[0]][ps_ind[1] + 1]))
 
 	def _compute_stats(self, window=None):
 		"""Compute statistics of list of scores"""
@@ -136,6 +146,46 @@ class Analysis(object):
 				self.x_sce_f.append(x_sce_f)
 
 				i += 1
+
+	def _rearrange_pop(self, index=0):
+		"""Group a score list in generations and return gen number min, max and average"""
+
+		dim = len(self.y[index])
+		ps = self.ps[index]
+		assert dim%ps == 0, "The total number of iteration (" + str(dim) + ") shall be a " + \
+			"multiple of the population size (" + str(ps) + "). Please verify the file " +  \
+			self.filenames[index] + " or this sript!"
+
+		array = np.array(self.y[index])
+		matrix = np.reshape(array, (-1, ps))
+		y_min = np.min(matrix, axis=1)
+		y_max = np.max(matrix, axis=1)
+		y_av = np.mean(matrix, axis=1)
+		x = np.array(range((y_av.size)))
+
+		print dim, ps, matrix.shape, y_min.shape, y_av.shape, y_max.shape, x.shape
+		return x, y_min, y_max, y_av
+
+	def load(self):
+		"""Browse all folder and retrieve all scores. Then load configs and parameters"""
+
+		# Load scores
+		for path, subdirs, files in os.walk(self.path):
+			for name in files:
+				if name.find("score") != -1 and os.path.splitext(name)[1] == ".csv":
+					with open(os.path.join(path, name), 'r') as csvfile:
+						tab = csv.reader(csvfile, delimiter=';', quotechar='|')
+						for row in tab:
+							self.scores.append(row)
+							self.filenames.append(os.path.join(path, name))
+		
+		# Fill score list and iteration range
+		for y in self.scores:
+			self.y.append(map(float, y))
+			self.x.append(range((len(y))))
+
+		# Load configs and parameters
+		self._load_configs()
 
 	def plot_score(self, index=0, filename="results_score", title=None, show=False, save=True):
 		"""Plot score evolution for a given file"""
@@ -244,25 +294,6 @@ class Analysis(object):
 			print(" -- Can't print generation scores for file " + self.filenames[index] + \
 				" with "+ self.opt_type[index] + " optimization type.")
 
-	def _rearrange_pop(self, index=0):
-		"""Group a score list in generations and return gen number min, max and average"""
-
-		dim = len(self.y[index])
-		ps = self.ps[index]
-		assert dim%ps == 0, "The total number of iteration (" + str(dim) + ") shall be a " + \
-			"multiple of the population size (" + str(ps) + "). Please verify the file " +  \
-			self.filenames[index] + " or this sript!"
-
-		array = np.array(self.y[index])
-		matrix = np.reshape(array, (-1, ps))
-		y_min = np.min(matrix, axis=1)
-		y_max = np.max(matrix, axis=1)
-		y_av = np.mean(matrix, axis=1)
-		x = np.array(range((y_av.size)))
-
-		print dim, ps, matrix.shape, y_min.shape, y_av.shape, y_max.shape, x.shape
-		return x, y_min, y_max, y_av
-
 	def plot_all_scores(self, filename="results_score", show=False, save=True):
 		"""Plot score evolution for a all files. This can take several minutes"""
 
@@ -293,9 +324,40 @@ class Analysis(object):
 			self.plot_score_conv_err(index=i, filename=filename + "_" + str(i), show=show, save=save)
 			i += 1
 
-	def plot_state_space(self, filename="results_score_conv_err", show=False, save=True):
+	def plot_state_space(self, filename="results_state_space", show=False, save=True):
 		"""Plot the score evolution in a state space composed by the two first PC to 
 		get a glance at the dynamics of the problem"""
+		
+		if not self.parameters:
+			print(" -- Loading parameter files -- ")
+			self._load_parameters()
+		print(" -- Parameter files loaded -- ")
+
+		for i, y in enumerate(self.y):
+
+			# Compute PCA
+			vec = np.array(self.parameters[i])
+
+			if vec.shape[0] > vec.shape[1]:
+				res = PCA(vec)
+				pc1 = res.Y[:,0]
+				pc2 = res.Y[:,1]
+			else:
+				pc1 = vec[:,0]
+				pc2 = vec[:,1]
+
+			# Get stats
+			n = pc1.shape[0]
+
+			# Plot
+			fig, ax = Plot.initPlot(proj="3d")
+			ax.plot_trisurf(pc1, pc2, np.array(y), label="PCA trajectory", cmap=matplotlib.cm.jet, linewidth=0.2)#c=y, s=10, cmap=matplotlib.cm.jet,
+			plt.title("Score evolution in the two first principal components of the trained variable space")
+			ax.set_xlabel('PC 1')
+			ax.set_ylabel('PC 2')
+			ax.set_zlabel('Score')
+			if show: plt.show(block=True)
+			if save: plt.savefig(filename + "_" + str(i) + ".png", format='png', dpi=300)
 
 	def get_best_ind(self, index=None):
 		"""Return best individu score, file index and place index"""
@@ -360,11 +422,11 @@ class Analysis(object):
 
 		jsonpickle.set_encoder_options('simplejson', sort_keys=True, indent=4)
 		with open("simulEnv.json", 'wb') as f:
-		 	f.write(jsonpickle.encode(simulEnv))
-		 	f.close()
+			f.write(jsonpickle.encode(simulEnv))
+			f.close()
 		with open("robot.json", 'wb') as f:
-		 	f.write(jsonpickle.encode(robot))
-		 	f.close()
+			f.write(jsonpickle.encode(robot))
+			f.close()
 
 		# Do the simulation
 		simul = Simulation(simulEnv, robot)
