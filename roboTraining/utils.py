@@ -6,6 +6,7 @@ import os
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import math
 import neurolab as nl
 
@@ -368,8 +369,13 @@ class SpaceList(object):
 
 class Plot(object):
 	@staticmethod
-	def initPlot():
-		return plt.subplots(facecolor=(1,1,1), figsize=(10, 6), dpi=150)
+	def initPlot(proj=None):
+		if proj == None:
+			return plt.subplots(facecolor=(1,1,1), figsize=(10, 6), dpi=150)
+		elif proj == "3d":
+			fig = plt.figure(facecolor=(1,1,1), figsize=(10, 6), dpi=150)
+			ax = fig.add_subplot(111, projection="3d")
+			return fig, ax
 
 	@staticmethod
 	def initBarPlot(labels, values, xlabel , ylabel, label = None, barWidth = 0.5):
