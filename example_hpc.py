@@ -59,7 +59,6 @@ if __name__ == "__main__":
 				index = i * size + rank
 				if index < len(arg_list):
 					time += float(arg_list[index][0]) / 20 * trainingIt * n_iteration / 3600
-					print("Time value: " + str(time))
 			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
 				"{:.2f} hours == \n".format(time) )
@@ -71,8 +70,8 @@ if __name__ == "__main__":
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 						" -- Experiment " + str(index+1) + " with Omega=" + \
 						str(arg_list[index][0]) + " and Amplitude=" + str(arg_list[index][1]))
-					e = Experiment(fileName_=fileName, folderName_="SimTime", spring_=arg_list[index][0],\
-					maxIter_=trainingIt, mass_=arg_list[index][1])
+					e = Experiment(fileName_=fileName, folderName_="SimTime", simTime_=arg_list[index][0],\
+					maxIter_=trainingIt, optMethod_=arg_list[index][1])
 					e.run()
 
 		#  Different nodes number
