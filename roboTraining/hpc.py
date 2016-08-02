@@ -18,13 +18,14 @@ class Experiment(object):
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="dist", controlPlot_=False, maxIter_=5000, maxOmega_=10, \
-		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30):
+		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
 		self.folderName = folderName_
 		self.noNodes = noNodes_
 		self.spring = spring_
+		self.mass = mass_
 		self.noNeighbours = noNeighbours_
 		self.plot = plot_
 		self.simTimeStep = simTimeStep_
@@ -43,7 +44,8 @@ class Experiment(object):
 
 		# Init environment
 		env = HardEnvironment()
-		morph = SpringMorphology(noNodes=self.noNodes , spring=self.spring, noNeighbours=self.noNeighbours, environment=env)
+		morph = SpringMorphology(noNodes=self.noNodes, mass=self.mass, spring=self.spring, \
+			noNeighbours=self.noNeighbours, environment=env)
 		control = SineControl(morph)
 		robot = Robot(morph, control)
 
@@ -123,3 +125,26 @@ def createSimTimeVal():
 
 	return liste
 
+def createKMVal():
+	"""Return a 2D list of spring constant and mass value"""
+
+	spring = [20, 50, 100, 200, 500]
+	mass =  [0.1, 0.5, 1, 2, 5, 10]
+	liste = []
+
+	for k in spring:
+		for m in mass:
+			liste.append([k, m])
+
+	return liste
+
+def createNodesVal():
+	"""Return a list of nodes number"""
+
+	nodes = range(3, 30)
+	liste = []
+
+	for n in nodes:
+			liste.append([n])
+
+	return liste
