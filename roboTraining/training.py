@@ -1,4 +1,4 @@
-﻿import abc
+import abc
 import csv
 import os.path
 import sqlite3
@@ -298,6 +298,7 @@ class GeneticTraining(Training):
 			maximization = True, mutationSigma = 0.5 , crossover = "type", selector = "tournament", crossoverRate = 0.33,
 		mutationRate = 0.33, populationSize = 30, noGenerations = 50, scaling = "exponential", databaseName = "default"):
 		self.databaseName = databaseName + '.db'
+		self.csvName = databaseName + '.csv'
 		self.mutationSigma = mutationSigma
 		self.crossover = crossover
 		self.selector = selector
@@ -349,8 +350,10 @@ class GeneticTraining(Training):
 		ga.setPopulationSize(self.populationSize)
 		ga.setGenerations(self.noGenerations)
 		
-		sqlite_adapter = DBAdapters.DBSQLite(dbname= self.databaseName ,identify="default") # save statistics
-		ga.setDBAdapter(sqlite_adapter)
+		sqlite_adapter = DBAdapters.DBSQLite(dbname=self.databaseName, identify="default") # save statistics
+		csv_adapter = DBAdapters.DBFileCSV(filename=self.csvName, identify="default") # save statistics
+		#ga.setDBAdapter(sqlite_adapter)
+		ga.setDBAdapter(csv_adapter)
 	
 		pop = ga.getPopulation()
 	
@@ -373,7 +376,8 @@ class GeneticTraining(Training):
 		t_tot = time.time() - t_init
 
 		best = ga.bestIndividual()
-		self.data = self.fetchData()
+		#self.data = self.fetchData()
+		self.data = self.fetchCSVData()
 		return  best.genomeList, best.getRawScore(), t_tot
 
 	def generatePlot(self, p = 0.2):
@@ -405,6 +409,7 @@ class GeneticTraining(Training):
 
 	def fetchData(self, identify = "default"):
 		""" retrieve relevant data from the database created by Pyevolve when running the GA """
+
 		dbfile = self.databaseName
 		if not os.path.exists(dbfile):
 			print "Database file '%s' not found !" % (dbfile,)
@@ -428,10 +433,29 @@ class GeneticTraining(Training):
 			for it in ret_fetch:
 				pop_tmp.append(it["raw"])
 			data.append(pop_tmp)
-	
+			
 		ret.close()
 		conn.close()
 		return data
+
+	def fetchCSVData(self, identify = "default"):
+		"""Return relevant data from the csv database created by pyevolve when running the GA"""
+
+		dbfile = self.csvName
+		if not os.path.exists(dbfile):
+			print "CSV file '%s' not found !" % (dbfile,)
+			exit()
+
+		data = [] # array in which all values will be stored
+
+		with open(dbfile, 'r') as csvfile:
+			tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
+
+			for i, row in enumerate(tab):
+				n_pop = int(row[2])
+				data.extend(map(float, row[3:3+n_pop]))
+		return data
+
 
 	@staticmethod
 	def rankScaling(pop):

@@ -171,10 +171,16 @@ class DBFileCSV(DBBaseAdapter):
       .. versionchanged:: 0.6
          The method now receives the *ga_engine* parameter.
       """
-      stats = ga_engine.getStatistics()
+      stats      = ga_engine.getStatistics().asTuple()
+      population = ga_engine.getPopulation()
       generation = ga_engine.getCurrentGeneration()
-      line = [self.getIdentify(), generation]
-      line.extend(stats.asTuple())
+
+      line = [self.getIdentify(), generation, len(population)]
+      for i in xrange(len(population)):
+         ind = population[i]
+         line.append(ind.score)
+
+      line.extend([len(stats), stats])
       self.csvWriter.writerow(line)
 
 class DBURLPost(DBBaseAdapter):
