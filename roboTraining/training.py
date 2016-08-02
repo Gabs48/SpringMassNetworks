@@ -297,8 +297,11 @@ class GeneticTraining(Training):
 	def __init__( self, trainscheme , robot, simulEnv, saver = None, showIntermediateResults = True, saveAllstates = True,
 			maximization = True, mutationSigma = 0.5 , crossover = "type", selector = "tournament", crossoverRate = 0.33,
 		mutationRate = 0.33, populationSize = 30, noGenerations = 50, scaling = "exponential", databaseName = "default"):
-		self.databaseName = databaseName + '.db'
-		self.csvName = databaseName + '.csv'
+
+		comm = MPI.COMM_WORLD
+		rank = comm.Get_rank()
+		self.databaseName = databaseName + "_" + str(rank) + '.db'
+		self.csvName = databaseName + "_" + str(rank) + '.csv'
 		self.mutationSigma = mutationSigma
 		self.crossover = crossover
 		self.selector = selector
@@ -352,8 +355,8 @@ class GeneticTraining(Training):
 		
 		sqlite_adapter = DBAdapters.DBSQLite(dbname=self.databaseName, identify="default") # save statistics
 		csv_adapter = DBAdapters.DBFileCSV(filename=self.csvName, identify="default") # save statistics
-		#ga.setDBAdapter(sqlite_adapter)
-		ga.setDBAdapter(csv_adapter)
+		ga.setDBAdapter(sqlite_adapter)
+		#ga.setDBAdapter(csv_adapter)
 	
 		pop = ga.getPopulation()
 	
@@ -376,8 +379,8 @@ class GeneticTraining(Training):
 		t_tot = time.time() - t_init
 
 		best = ga.bestIndividual()
-		#self.data = self.fetchData()
-		self.data = self.fetchCSVData()
+		self.data = self.fetchData()
+		#self.data = self.fetchCSVData()
 		return  best.genomeList, best.getRawScore(), t_tot
 
 	def generatePlot(self, p = 0.2):
@@ -433,7 +436,7 @@ class GeneticTraining(Training):
 			for it in ret_fetch:
 				pop_tmp.append(it["raw"])
 			data.append(pop_tmp)
-			
+
 		ret.close()
 		conn.close()
 		return data
