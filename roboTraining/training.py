@@ -156,7 +156,6 @@ class PartialTrainingScheme(TrainingScheme):
 	def createPartialMatrix(self, matrix):
 		return matrix[:, self.trainNodes]
 
-
 class Training(object):
 	__metaclass__ = abc.ABCMeta
 	""" Abstract Class for training a robot

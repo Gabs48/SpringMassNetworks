@@ -25,8 +25,7 @@ class Analysis(object):
 		self.scores = []
 		self.filenames = []
 		self.parameters = []
-		self.maxomega = []
-		self.maxampli = []
+		self.trainable = []
 		self.opt_type = []
 		self.sim_time = []
 		self.k = []
@@ -84,10 +83,18 @@ class Analysis(object):
 			with open(f.replace("score", "config"), 'r') as csvfile:
 				tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
 
-				# Find max omega and amplitudes
+				# Find trainable parameters
 				params_ind = findIndex(tab, "trainableParams:")
-				self.maxomega.append(float(tab[params_ind[0] + 3][params_ind[1] + 3]))
-				self.maxampli.append(float(tab[params_ind[0] + 9][params_ind[1] + 3]))
+				vals = []
+				for i in range(len(tab) - params_ind[0] + 1):
+					if len(tab[i]) > (params_ind[1] + 2):
+						if str(tab[i][params_ind[1] + 2]).find("name") != -1:
+							dico = dict()
+							dico["name"] = str(tab[i][params_ind[1] + 3]).translate(None, ' :')
+							dico["min"] = float(tab[i + 1][params_ind[1] + 3])
+							dico["max"] = float(tab[i + 2][params_ind[1] + 3])
+							vals.append(dico)
+				self.trainable.append(vals)
 
 				# Find the optimization type
 				rand_type_ind = findIndex(tab, "noInstances:")
@@ -119,7 +126,7 @@ class Analysis(object):
 
 				# Find spring constant
 				k_ind = findIndex(tab, "spring:")
-				self.k.append(float(tab[k_ind[0]+1][k_ind[1] + 2]))	 
+				self.k.append(float(tab[k_ind[0]+1][k_ind[1] + 2]))
 
 	def _compute_stats(self, window=None, pca=False):
 		"""Compute statistics of list of scores"""
@@ -531,11 +538,14 @@ class Analysis(object):
 		# Get training parameters of a given individu and update them in the robot
 		parameterFilename = scoreFilename.replace("score", "parameter")
 		trainscheme = TrainingScheme()
+		for param in self.trainable[index1]:
+			trainscheme.createTrainVariable(param["name"], param["min"], param["max"])
 		paramMatrix = trainscheme.loadCSV(parameterFilename, index2)
 		trainscheme.normalizedMatrix2robot(paramMatrix, robot)
 
 		# Create the simulation
-		plotter = Plotter(movie=True, plot=True, movieName=simName, plotCycle = 6)
+		plotter = Plotter(plot=False);
+		#plotter = Plotter(movie=True, plot=True, movieName=simName, plotCycle = 6)
 		simulEnv = SimulationEnvironment(timeStep=1.0/200, simulationLength=200*time, plot=plotter, \
 			perfMetr="dist", controlPlot=False)
 
@@ -657,9 +667,10 @@ class Analysis(object):
 			# If couple omega/ampli already existsn average with previous one
 			for j, om in enumerate(omega):
 				for k, am in enumerate(ampli):
-					if om == self.maxomega[i] and am == self.maxampli[i] and j == k:
-						dist[j].append(self.get_best_ind(index=i)[0])
-						duplicate = True
+					if om == self.trainable[i]["omega"]["max"] and \
+						am == self.trainable[i]["amplitude"]["max"] and j == k:
+							dist[j].append(self.get_best_ind(index=i)[0])
+							duplicate = True
 
 			if duplicate == False:
 				dist.append([self.get_best_ind(index=i)[0]])
