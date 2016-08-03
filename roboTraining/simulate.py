@@ -346,4 +346,3 @@ class ReservoirSimulation (VerletSimulation):
 		plt.show(block = block)
 
 		return fig, ax
-

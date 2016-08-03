@@ -29,6 +29,9 @@ class Analysis(object):
 		self.maxampli = []
 		self.opt_type = []
 		self.sim_time = []
+		self.k = []
+		self.m = []
+		self.n_nodes = []
 		self.ps = []
 
 		self.y = []
@@ -105,6 +108,18 @@ class Analysis(object):
 					self.ps.append(19)
 				else:
 					self.ps.append(float(tab[ps_ind[0]][ps_ind[1] + 1]))
+
+				# Find Nodes number
+				nn_ind = findIndex(tab, "noNodes:")
+				self.n_nodes.append(int(tab[nn_ind[0]][nn_ind[1] + 1]))
+
+				# Find mass
+				m_ind = findIndex(tab, "mass:")
+				self.m.append(float(tab[m_ind[0]][m_ind[1] + 1]))
+
+				# Find spring constant
+				k_ind = findIndex(tab, "spring:")
+				self.k.append(float(tab[k_ind[0]+1][k_ind[1] + 2]))	 
 
 	def _compute_stats(self, window=None, pca=False):
 		"""Compute statistics of list of scores"""
@@ -403,7 +418,7 @@ class Analysis(object):
 		fig2, ax2 = Plot.initPlot(proj="3d")
 		for j in xrange(1, window):
 			ax2.plot(self.pc1_av[index][j*gap_av:(j+1)*gap_av], self.pc2_av[index][j*gap_av:(j+1)*gap_av], \
-				self.y_av[index][j*gap_av:(j+1)*gap_av], ".-", c=plt.cm.jet(1.*j/window), \
+				self.y_av[index][j*gap_av:(j+1)*gap_av], ".", c=plt.cm.jet(1.*j/window), \
 				linewidth=1, markersize=0.4, label="PCA average")
 		ax2.plot(self.pc1_std[index], self.pc2_std[index], self.y_std_a[index],	"r-", linewidth=0.4, label="PCA max std")
 		ax2.plot(self.pc1_std[index], self.pc2_std[index], self.y_std_b[index],	"b-", linewidth=0.4, label="PCA min std")
@@ -568,6 +583,54 @@ class Analysis(object):
 			self.plot_gen(index=i, filename=gen_filename, title=gen_title)
 			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
 			i += 1
+
+	def km(self):
+		"""Perform specific analysis for a km batch"""
+
+		folder = "km_pic/"
+		mkdir_p(folder)
+
+		for i, score in enumerate(self.scores):
+			
+			ext = num2str(self.k[i]) + "_" + num2str(self.m[i])
+			err_title = "Convergence error evolution with k=" + num2str(self.k[i]) + " and m=" + \
+				num2str(self.m[i]) 
+			evo_title = "Averaged optimization evolution with k=" + num2str(self.k[i]) + " and m=" + \
+				num2str(self.m[i])
+			gen_title = "Generation evolution with k=" + num2str(self.k[i]) + " training and m=" + \
+				num2str(self.m[i])
+			ss_title = "PC parameters evolution with k=" + num2str(self.k[i]) + " training and m=" + \
+				num2str(self.m[i])
+			err_filename = folder + "err_" + ext
+			evo_filename = folder + "evol_" + ext
+			gen_filename = folder + "gen_" + ext
+			ss_filename = folder + "exp_" + ext
+			self.plot_score_av(index=i, filename=evo_filename, title=evo_title)
+			self.plot_conv_err(index=i, filename=err_filename, title=err_title)
+			self.plot_gen(index=i, filename=gen_filename, title=gen_title)
+			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
+
+	def nodes(self):
+		"""Perform specific analysis for a nodes batch"""
+
+		folder = "nodes_pic/"
+		mkdir_p(folder)
+
+		for i, score in enumerate(self.scores):
+			
+			ext = num2str(self.n_nodes[i])
+			err_title = "Convergence error evolution with nodes number =" + ext
+			evo_title = "Averaged optimization evolution with nodes number =" + ext
+			gen_title = "Generation evolution with nodes number =" + ext
+			ss_title = "PC parameters evolution with nodes number =" + ext
+			err_filename = folder + "err_" + ext
+			evo_filename = folder + "evol_" + ext
+			gen_filename = folder + "gen_" + ext
+			ss_filename = folder + "exp_" + ext
+			self.plot_score_av(index=i, filename=evo_filename, title=evo_title)
+			self.plot_conv_err(index=i, filename=err_filename, title=err_title)
+			self.plot_gen(index=i, filename=gen_filename, title=gen_title)
+			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
 
 	def pareto(self, filename="results_pareto", show=False, save=True):
 		"""Perform specific analysis for a pareto batch"""

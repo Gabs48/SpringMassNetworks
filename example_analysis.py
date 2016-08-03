@@ -25,3 +25,8 @@ if __name__ == "__main__":
 	# Pareto Anaysis
 	# an.pareto()
 
+	# Spring Mass values analysis
+	# an.km()
+
+	# Nodes number value analysis
+	# an.nodes()
