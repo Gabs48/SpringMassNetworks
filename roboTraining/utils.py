@@ -205,9 +205,13 @@ class Save(object):
 		""" write data and object to CSV file, input can be object, array like, string, dictionairy"""
 		if isinstance(data, dict):
 			for key in data:
-				Save.toCSV(data[key], self.generateName(key), self.floatFormat)
+				if key =="parameter":
+					Save.toCSV(data[key], self.generateName(key), floatFormat="0.10f")
+				else:
+					Save.toCSV(data[key], self.generateName(key), self.floatFormat)
 		elif not data is None:
 			Save.toCSV(data, self.generateName(), self.floatFormat)
+
 		Save.toCSV(self.object, self.generateName(Save.configname) , self.floatFormat)
 		if close:
 			self.close()

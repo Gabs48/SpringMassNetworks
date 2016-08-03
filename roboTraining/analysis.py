@@ -28,6 +28,8 @@ class Analysis(object):
 		self.trainable = []
 		self.opt_type = []
 		self.sim_time = []
+		self.ts = []
+		self.sl = []
 		self.k = []
 		self.m = []
 		self.n_nodes = []
@@ -107,6 +109,8 @@ class Analysis(object):
 				# Find simulation time
 				ts_ind = findIndex(tab, "timeStep:")
 				sl_ind = findIndex(tab, "simulationLength:")
+				self.ts.append(float(tab[ts_ind[0]][ts_ind[1] + 1]))
+				self.sl.append(int(tab[sl_ind[0]][sl_ind[1] + 1]))
 				self.sim_time.append(float(tab[ts_ind[0]][ts_ind[1] + 1])*float(tab[sl_ind[0]][sl_ind[1] + 1]))
 
 				# Find population size
@@ -518,19 +522,18 @@ class Analysis(object):
 
 			return max_t, max_index1, max_index2
 
-	def simulate_ind(self, time=2, index1=None, index2=None, simName="Simulation"):
+	def simulate_ind(self, index1=None, index2=None, simName="Simulation"):
 		"""Render a simulation movie for a given individu"""
 
 		scoreFilename = self.filenames[index1]
 		print(' -- Simulate individu ' +  scoreFilename + ' (' + str(index2) + "/" + \
 			str(len(self.scores[index1])) + ") with score " + num2str(self.y[index1][index2]) + \
-			" for " + num2str(time) + "s. This can takes several minutes. --")
+			" for " + num2str(self.ts[index1]*self.sl[index1]) + "s. This can takes several minutes. --")
 
 		# Construct robot from config file
 		configFilename = scoreFilename.replace("score", "config")
 		env = HardEnvironment()
-		morph = SpringMorphology(noNodes=20 , spring=100, noNeighbours=3, environment=env)
-		# morph.loadCSV(configFilename)
+		morph = SpringMorphology(noNodes=self.n_nodes[index1] , spring=self.k[index1], noNeighbours=3, environment=env)
 		control = SineControl(morph)
 		control.loadCSV(configFilename)
 		robot = Robot(morph, control)
@@ -546,22 +549,14 @@ class Analysis(object):
 		# Create the simulation
 		plotter = Plotter(plot=False);
 		#plotter = Plotter(movie=True, plot=True, movieName=simName, plotCycle = 6)
-		simulEnv = SimulationEnvironment(timeStep=1.0/200, simulationLength=200*time, plot=plotter, \
+		simulEnv = SimulationEnvironment(timeStep=self.ts[index1], simulationLength=self.sl[index1], plot=plotter, \
 			perfMetr="dist", controlPlot=False)
 
-		# jsonpickle.set_encoder_options('simplejson', sort_keys=True, indent=4)
-		# with open("simulEnv.json", 'wb') as f:
-		# 	f.write(jsonpickle.encode(simulEnv))
-		# 	f.close()
-		# with open("robot.json", 'wb') as f:
-		# 	f.write(jsonpickle.encode(robot))
-		# 	f.close()
-
 		# Do the simulation
-		simul = Simulation(simulEnv, robot)
+		simul = VerletSimulation(simulEnv, robot)
 		score = simul.runSimulation();
 
-		print(" -- Simulation terminated with score " + num2str(score) + \
+		print(" -- Simulation terminated with score {:.5f}".format(score) + \
 			". Video saved in file " + simName + ".mp4 --")
 
 	## ------------------- Specific Simulation types ---------------------------

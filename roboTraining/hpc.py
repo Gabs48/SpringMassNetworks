@@ -71,7 +71,7 @@ class Experiment(object):
 		param, score, t_tot = train.run() 
 		bestRobot = trainscheme.normalizedMatrix2robot(train.bestParameters, robot)
 		# print(train.bestParameters)
-		print(train.optimalscore)
+		# print(train.optimalscore)
 
 		# pltt = Plotter(movie = True, plot = True, movieName = "Robot13April", plotCycle = 6, color=True)
 		# simulEnv = SimulationEnvironment(timeStep = 1.0/200, simulationLength = 400, plot =  pltt) # 00
@@ -94,7 +94,7 @@ class Experiment(object):
 		print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 			" -- Total training time: " + "{:.1f}".format(t_tot)  + " s")
 		print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
-			" -- Best score (" + self.perfMetr + "): {:.2f}".format(score)  + "\n")
+			" -- Best score (" + self.perfMetr + "): {:.4f}".format(score)  + "\n")
 		train.save()
 		print(" == Experiment finished with the following parameters == \n\n  " + str(self.__dict__) + "\n")
 
