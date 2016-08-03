@@ -71,14 +71,15 @@ class TrainingScheme(object):
 			matrix[i,:]=self.trainableParams[i].normalize(matrix[i,:])
 		return matrix
 
-	def loadCSV(self, fileName, index):
+	def loadCSV(self, fileName, index, n_param=3):
 		"""Load the training parameters from a config file and its index"""
 
 		with open(fileName, 'r') as csvfile:
 			tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
 			
 			ii = 0
-			for i in range(5 * index + 2, 5 * index + 5) :
+			mult = n_param + 2
+			for i in range(mult * index + 2, mult * index + mult) :
 				if ii == 0:
 					matrix = np.array([float(it) for it in tab[i]])
 				if ii == 1:
@@ -88,7 +89,6 @@ class TrainingScheme(object):
 				ii += 1
 
 		return matrix
-
 
 	def normalizedMatrix2robot(self,matrix,robot):
 		""" --- update the robot to a matrix of normalized parameters together with a list of parameters  ---

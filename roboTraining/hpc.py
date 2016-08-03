@@ -17,7 +17,7 @@ class Experiment(object):
 	"""Class to perform standard experiments"""
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
-		simTimeStep_=0.005, simTime_=20, perfMetr_="dist", controlPlot_=False, maxIter_=5000, maxOmega_=10, \
+		simTimeStep_=0.005, simTime_=20, perfMetr_="dist", controlPlot_=False, maxIter_=5000, omega_=5, \
 		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1):
 		"""Initialize the variables lists"""
 
@@ -33,7 +33,7 @@ class Experiment(object):
 		self.perfMetr = perfMetr_
 		self.controlPlot = controlPlot_
 		self.maxIter = maxIter_
-		self.maxOmega = maxOmega_
+		self.omega = omega_
 		self.optMethod = optMethod_
 		self.maxAmplitude = maxAmplitude_
 		self.popSize = popSize_
@@ -46,7 +46,7 @@ class Experiment(object):
 		env = HardEnvironment()
 		morph = SpringMorphology(mass=self.mass, noNodes=self.noNodes, spring=self.spring, \
 			noNeighbours=self.noNeighbours, environment=env)
-		control = SineControl(morph)
+		control = SineControl(morph, omega=self.omega)
 		robot = Robot(morph, control)
 
 		plotter = Plotter(plot=False);
@@ -54,9 +54,10 @@ class Experiment(object):
 		plot=plotter, perfMetr=self.perfMetr, controlPlot=self.controlPlot)
 
 		trainscheme = TrainingScheme()
-		trainscheme.createTrainVariable("omega", 0, self.maxOmega)
+		#trainscheme.createTrainVariable("omega", 0, self.maxOmega)
 		trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
-		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
+		#trainscheme.createTrainVariable("restLength", np.min(morph.restLength[morph.restLength>0]), np.max(morph.restLength))
+		trainscheme.createTrainVariable("amplitude", 0, 0.25)#self.maxAmplitude)
 
 		saver = Save(None, self.fileName, self.folderName)
 		if self.optMethod == "CMA":
@@ -70,21 +71,6 @@ class Experiment(object):
 		# Perform optimization
 		param, score, t_tot = train.run() 
 		bestRobot = trainscheme.normalizedMatrix2robot(train.bestParameters, robot)
-		# print(train.bestParameters)
-		# print(train.optimalscore)
-
-		# pltt = Plotter(movie = True, plot = True, movieName = "Robot13April", plotCycle = 6, color=True)
-		# simulEnv = SimulationEnvironment(timeStep = 1.0/200, simulationLength = 400, plot =  pltt) # 00
-		# simul = VerletSimulation(simulEnv, robot)
-		# print simul.runSimulation();
-
-		# jsonpickle.set_encoder_options('simplejson', sort_keys=True, indent=4)
-		# with open("simulEnv_orig.json", 'wb') as f:
-		# 	f.write(jsonpickle.encode(simulenv))
-		# 	f.close()
-		# with open("robot_orig.json", 'wb') as f:
-		# 	f.write(jsonpickle.encode(robot))
-		# 	f.close()
 
 		# Print and save results
 		comm = MPI.COMM_WORLD
@@ -115,8 +101,8 @@ def createParetoVal(pool_n=1):
 def createSimTimeVal():
 	"""Return a 2D list of Simulation time and optimization methdd"""
 
-	st = [0.5, 1, 2, 5, 10, 20, 25, 50]
-	opt =  ["CMA", "Genetic", "Random"]
+	st = [0.5, 1, 2, 5, 10, 20, 25]
+	opt =  ["CMA"]#, "Genetic", "Random"]
 	liste = []
 
 	for s in st:

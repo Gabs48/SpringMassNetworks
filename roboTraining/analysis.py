@@ -527,7 +527,7 @@ class Analysis(object):
 
 		scoreFilename = self.filenames[index1]
 		print(' -- Simulate individu ' +  scoreFilename + ' (' + str(index2) + "/" + \
-			str(len(self.scores[index1])) + ") with score " + num2str(self.y[index1][index2]) + \
+			str(len(self.scores[index1])) + ") with score {:.4f}".format(self.y[index1][index2]) + \
 			" for " + num2str(self.ts[index1]*self.sl[index1]) + "s. This can takes several minutes. --")
 
 		# Construct robot from config file
@@ -543,12 +543,11 @@ class Analysis(object):
 		trainscheme = TrainingScheme()
 		for param in self.trainable[index1]:
 			trainscheme.createTrainVariable(param["name"], param["min"], param["max"])
-		paramMatrix = trainscheme.loadCSV(parameterFilename, index2)
+		paramMatrix = trainscheme.loadCSV(parameterFilename, index2, len(self.trainable[index1]))
 		trainscheme.normalizedMatrix2robot(paramMatrix, robot)
 
 		# Create the simulation
-		plotter = Plotter(plot=False);
-		#plotter = Plotter(movie=True, plot=True, movieName=simName, plotCycle = 6)
+		plotter = Plotter(movie=True, plot=True, movieName=simName, plotCycle = 6)
 		simulEnv = SimulationEnvironment(timeStep=self.ts[index1], simulationLength=self.sl[index1], plot=plotter, \
 			perfMetr="dist", controlPlot=False)
 
@@ -556,7 +555,7 @@ class Analysis(object):
 		simul = VerletSimulation(simulEnv, robot)
 		score = simul.runSimulation();
 
-		print(" -- Simulation terminated with score {:.5f}".format(score) + \
+		print(" -- Simulation terminated with score {:.4f}".format(score) + \
 			". Video saved in file " + simName + ".mp4 --")
 
 	## ------------------- Specific Simulation types ---------------------------

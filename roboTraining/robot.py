@@ -304,7 +304,8 @@ class SpringMorphology(Morphology):
 	param = ['spring','damping','restLength','initialHeight','noNeighbours'] + Morphology.param
 
 	def __init__(self, noNodes = 20, mass = 1, spring = 1000, damping = 1, initialHeight = 4, noNeighbours = 3, 
-				environment = HardEnvironment()):
+		environment = HardEnvironment()):
+		
 		self.initialHeight = initialHeight  # height of the robot
 		self.noNeighbours = noNeighbours  # number of Neighbours
 		self.environment = environment
