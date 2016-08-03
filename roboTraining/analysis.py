@@ -69,10 +69,10 @@ class Analysis(object):
 					if j%5 == 3 or j%5 == 4:
 						row.extend(tab[j])
 					if j%5 == 0 and j != 0:
-						row_float = map(float, row)
+						row_float = list(map(float, row))
 						params.append(row_float)
 
-				row_float = map(float, row)
+				row_float = list(map(float, row))
 				params.append(row_float) # last iteration
 				self.parameters.append(params)
 				print(" -- Parameters of " + str(i+1) + "/" + str(len(self.filenames)) + " loaded -- ")
@@ -266,7 +266,7 @@ class Analysis(object):
 		
 		# Fill score list and iteration range
 		for y in self.scores:
-			self.y.append(map(float, y))
+			self.y.append(list(map(float, y)))
 			self.x.append(range((len(y))))
 
 		# Load configs and parameters
@@ -539,13 +539,13 @@ class Analysis(object):
 		simulEnv = SimulationEnvironment(timeStep=1.0/200, simulationLength=200*time, plot=plotter, \
 			perfMetr="dist", controlPlot=False)
 
-		jsonpickle.set_encoder_options('simplejson', sort_keys=True, indent=4)
-		with open("simulEnv.json", 'wb') as f:
-			f.write(jsonpickle.encode(simulEnv))
-			f.close()
-		with open("robot.json", 'wb') as f:
-			f.write(jsonpickle.encode(robot))
-			f.close()
+		# jsonpickle.set_encoder_options('simplejson', sort_keys=True, indent=4)
+		# with open("simulEnv.json", 'wb') as f:
+		# 	f.write(jsonpickle.encode(simulEnv))
+		# 	f.close()
+		# with open("robot.json", 'wb') as f:
+		# 	f.write(jsonpickle.encode(robot))
+		# 	f.close()
 
 		# Do the simulation
 		simul = Simulation(simulEnv, robot)
@@ -591,10 +591,9 @@ class Analysis(object):
 		mkdir_p(folder)
 
 		for i, score in enumerate(self.scores):
-			
 			ext = num2str(self.k[i]) + "_" + num2str(self.m[i])
 			err_title = "Convergence error evolution with k=" + num2str(self.k[i]) + " and m=" + \
-				num2str(self.m[i]) 
+				num2str(self.m[i])
 			evo_title = "Averaged optimization evolution with k=" + num2str(self.k[i]) + " and m=" + \
 				num2str(self.m[i])
 			gen_title = "Generation evolution with k=" + num2str(self.k[i]) + " training and m=" + \
@@ -617,7 +616,6 @@ class Analysis(object):
 		mkdir_p(folder)
 
 		for i, score in enumerate(self.scores):
-			
 			ext = num2str(self.n_nodes[i])
 			err_title = "Convergence error evolution with nodes number =" + ext
 			evo_title = "Averaged optimization evolution with nodes number =" + ext
