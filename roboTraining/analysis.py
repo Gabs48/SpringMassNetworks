@@ -64,12 +64,13 @@ class Analysis(object):
 				tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
 			
 				params = []
+				mult = len(self.trainable[i]) + 2
 				for j in range(len(tab)) :
-					if j%5 == 2:
+					if j%mult == 2:
 						row = tab[j]
-					if j%5 == 3 or j%5 == 4:
+					if j%mult in range(3, mult-1):
 						row.extend(tab[j])
-					if j%5 == 0 and j != 0:
+					if j%mult == 0 and j != 0:
 						row_float = list(map(float, row))
 						params.append(row_float)
 
@@ -115,8 +116,8 @@ class Analysis(object):
 
 				# Find population size
 				ps_ind = findIndex(tab, "popSize:")
-				if ps_ind == [-1, -1]:
-					self.ps.append(19)
+				if ps_ind == [-1, -1] and self.opt_type[-1] == "CMA":
+					self.ps.append(int(4 + math.floor(3 * math.log(len(vals) * 54))))
 				else:
 					self.ps.append(float(tab[ps_ind[0]][ps_ind[1] + 1]))
 
@@ -237,6 +238,7 @@ class Analysis(object):
 
 	def _rearrange_pop(self, index=0):
 		"""Group a score list in generations and return gen number min, max and average"""
+
 
 		dim = len(self.y[index])
 		ps = self.ps[index]
@@ -557,6 +559,7 @@ class Analysis(object):
 
 		print(" -- Simulation terminated with score {:.4f}".format(score) + \
 			". Video saved in file " + simName + ".mp4 --")
+		print(" -- Distance: " + str(simul.getDistance()) + " and Power: " + str(robot.getPower()) + " -- ")
 
 	## ------------------- Specific Simulation types ---------------------------
 

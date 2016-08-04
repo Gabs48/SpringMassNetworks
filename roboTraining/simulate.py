@@ -216,9 +216,16 @@ class Simulation(object):
 		if self.controlPlot:
 			self.controlPlotter.plot()
 		return self.performanceMetric()
+
+	def getDistance(self):
+		""" Return the current travelled distance """
+
+		return Robot.getDistanceTraveled(self.initState, self.endState)
 	
 	def performanceMetric(self):
-		distance = Robot.getDistanceTraveled(self.initState, self.endState)
+		""" Return a score to characterize the simulation depending on the chosen performance metric """
+
+		distance = self.getDistance()
 		if self.simulEnv.perfMetr == 'dist':
 			return distance
 		elif self.simulEnv.perfMetr == 'powereff':
