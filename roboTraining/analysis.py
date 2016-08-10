@@ -524,19 +524,26 @@ class Analysis(object):
 
 			return max_t, max_index1, max_index2
 
-	def simulate_ind(self, index1=None, index2=None, simName="Simulation"):
+	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, movie=True):
 		"""Render a simulation movie for a given individu"""
 
+		# Init variables
 		scoreFilename = self.filenames[index1]
+		if not simTime:
+			sl = self.sl[index1]
+		else:
+			sl = int(simTime/self.ts[index1])
+		simTime = self.ts[index1] * sl
+
 		print(' -- Simulate individu ' +  scoreFilename + ' (' + str(index2) + "/" + \
 			str(len(self.scores[index1])) + ") with score {:.4f}".format(self.y[index1][index2]) + \
-			" for " + num2str(self.ts[index1]*self.sl[index1]) + "s. This can takes several minutes. --")
+			" for " + num2str(simTime) + "s. This can takes several minutes. --")
 
 		# Construct robot from config file
 		configFilename = scoreFilename.replace("score", "config")
 		env = HardEnvironment()
 		morph = SpringMorphology(noNodes=self.n_nodes[index1] , spring=self.k[index1], noNeighbours=3, environment=env)
-		control = SineControl(morph)
+		control = ClosedLoopSineControl(morph)
 		control.loadCSV(configFilename)
 		robot = Robot(morph, control)
 
@@ -549,17 +556,23 @@ class Analysis(object):
 		trainscheme.normalizedMatrix2robot(paramMatrix, robot)
 
 		# Create the simulation
-		plotter = Plotter(movie=True, plot=True, movieName=simName, plotCycle = 6)
-		simulEnv = SimulationEnvironment(timeStep=self.ts[index1], simulationLength=self.sl[index1], plot=plotter, \
+		plotter = Plotter(movie=movie, plot=movie, movieName=simName, plotCycle = 6)
+		simulEnv = SimulationEnvironment(timeStep=self.ts[index1], simulationLength=sl, plot=plotter, \
 			perfMetr="dist", controlPlot=False)
 
 		# Do the simulation
-		simul = VerletSimulation(simulEnv, robot)
+		if rc:
+			simul = ForceTrainingSimulation(simulEnv, robot, \
+				# signTime=self.ts[index1] * self.sl[index1], \
+				outputFilename="training")
+		else:
+			simul = VerletSimulation(simulEnv, robot)
 		score = simul.runSimulation();
 
 		print(" -- Simulation terminated with score {:.4f}".format(score) + \
-			". Video saved in file " + simName + ".mp4 --")
-		print(" -- Distance: " + str(simul.getDistance()) + " and Power: " + str(robot.getPower()) + " -- ")
+			". Distance: " + str(simul.getDistance()) + " and Power: " + str(robot.getPower()) + " -- ")
+		if movie:
+			print(" -- Video saved in file " + simName + ".mp4 --")
 
 	## ------------------- Specific Simulation types ---------------------------
 

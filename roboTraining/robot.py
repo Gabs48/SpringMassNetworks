@@ -608,6 +608,7 @@ class RobotState(object):
 				shape of all vectors in the robot state
 	"""
 	param = ['currentTime', 'pos', 'speed', 'shape']
+
 	def __init__(self, currentTime = 0, morph =None, copyState = 0): 
 		""" --- initialize the state of the robot based on either a generated robot morphology or an existing state ---
 			-- parameters --
@@ -840,17 +841,62 @@ class SineControl(TimeControl):
 
 	def getParams(self):
 		""" Get the robot parameters: amplitude, phase and modulation speed"""
+
 		return self.amplitude, self.phase, self.omega
 
 	def setParams(self, a, p, omega):
 		""" Set the robot parameters: amplitude, phase and modulation speed"""
+
 		self.amplitude, self.phase, self.omega = a, p, omega
 
 	def modulationFactorTime(self, time):
+		""" Return rest length modulation factor """
 		return 1 + self.amplitude * np.sin(self.omega * time + self.phase)
 
 	def getPower(self, springConstants, springLengths):
+		""" Return iteration power """
+
 		return np.sum( (springLengths * self.amplitude) ** 2 * self.omega * springConstants) / 2
+
+class ClosedLoopSineControl(SineControl):
+	""" This class extend can be used for controlling the robot in closed-loop:
+	 - If the CL parameter is se to False, it acts in open loop exactly like its parent class
+	SineControl.
+	 - If the CL parameters is change to True, the modulation factor is now given directly
+	through an argument by the simulation class.
+	Note that is should only been used with a TrainingSimulation simulator """
+
+	uniform2pi = lambda shape: np.random.uniform(0, 2*np.pi, shape)
+	firstStep = True
+
+	def __init__(self, morph, amplitude=0.2, phase=uniform2pi, omega=2*np.pi):
+		""" Init class """
+
+		super(ClosedLoopSineControl, self).__init__(morph, amplitude=amplitude, phase=phase, omega=omega)
+
+		self.CL = False
+		self.modFactor = np.array([])
+
+	def closeLoop(self):
+		""" Call this function to close the loop """
+
+		self.CL = True
+
+	def setStepInput(self, stepInput):
+		""" Set the controller output for the next time step from the simulation outputs """
+
+		self.modFactor = stepInput
+
+	def modulationFactorTime(self, time):
+		""" Redefine mod factor method in closed-loop"""
+
+		if self.CL == False:
+			return super(ClosedLoopSineControl, self).modulationFactorTime(time)
+		else:
+			if self.firstStep:
+				self.firstStep = False
+				print(" -- Closing the Loop at time " + str(time) + "s --")
+			return self.modFactor
 
 class GenerativeControl(Control):
 	#URGENT check for syntax and logic errors (not yet used)
@@ -942,6 +988,7 @@ class Robot(object):
 		return xMeanEnd - xMeanStart
 
 	def getShape(self):
+
 		return self.state.shape
 
 	def getProperty(self,name):
@@ -983,15 +1030,18 @@ class Robot(object):
 		return self.state.getStateParameters()
 
 	def getState(self):
-			return self.state.copy()
+
+		return self.state.copy()
 
 	def changeState(self,timeStep,V,A):
 		""" Change the time and positions based on time derivatives """
+
 		posChange = timeStep * V
 		speedChange = A * timeStep
 		self.state.changeState(timeStep, posChange, speedChange, self.morph.environment.ground)
 
 	def changeStateVerlet(self, timeStep, V, Aold, noise = 0):
+
 		if noise is not 0:
 			shape = np.shape(V.matrix)
 			posNoise = 1 + np.random.standard_normal(shape) * noise
@@ -1011,6 +1061,7 @@ class Robot(object):
 		return Anew
 
 	def printState(self):
+
 		state = self.state
 		meanPos = np.mean(state.pos.x)
 		meanSpeed = np.mean(state.speed.x)
@@ -1022,10 +1073,12 @@ class Robot(object):
 		return stateDescription
 
 	def getConnections(self):
+
 		return self.morph.connections
 
 	def _getRobotPos2D(self):
 		"""get the x and y coordinates of the nodes and the connections matrix"""
+
 		return self.state.pos.x, self.state.pos.y, self.morph.connections
 
 	def robot2matrix(self,paramlist):
@@ -1039,15 +1092,18 @@ class Robot(object):
 		- matrix : matrix
 			matrix of which the headers are given by paramlist
 		"""
+
 		matrix = np.zeros((len(paramlist),self.morph.getNoConnections()))
 		for i in range(len(paramlist)):
 			matrix[i,:]=self.getProperty(paramlist[i])
 		return matrix
 
 	def getNoConnections(self):
+
 		return self.morph.getNoConnections()
 
 	def reset(self):
+
 		self.state = RobotState(0, self.morph)
 	
 	def matrix2robot(self,paramlist,matrix, reset = True):
@@ -1059,6 +1115,7 @@ class Robot(object):
 		- matrix : matrix
 			matrix of which the headers are given by paramlist
 		"""
+
 		assert np.shape(matrix)[1] == self.getNoConnections(), "wrong number of parameters"
 		if reset:
 			self.reset()
@@ -1067,11 +1124,13 @@ class Robot(object):
 		return self
 
 	def getDistance(self,connectionNumber):
+
 		node1 = self.morph.start[connectionNumber]
 		node2 = self.morph.end[connectionNumber]
 		return self.state.pos.getDistance(node1, node2)
 
 	def currentRestLength(self, array = False, delay = 0):
+
 		if delay == 0:
 			modFactor = self.control.modulationFactor(self.state)
 		else: # requires TimeControl Instance
@@ -1082,15 +1141,19 @@ class Robot(object):
 			return self.morph.restLength * modFactor
 
 	def stressRatio(self):
+
 		return self.state.getDistanceDifference() / self.currentRestLength()
 
 	def getPower(self):
+
 		return self.control.getPower(self.morph.spring, self.morph.restLength)
 
 	def referencePower(self, springConstant, springLength, amplitude, omega):
+
 		return self.getNoConnections() * (amplitude * springLength) ** 2 * springConstant * omega
 
 	def staticPlot(self):
+
 		border = 1.5
 		jet = cm = plt.get_cmap('spectral') 
 		cNorm  = colors.Normalize(vmin = 0.5, vmax = 1.5)
@@ -1115,6 +1178,7 @@ class Robot(object):
 
 	def getSumOfSpringLengths(self):
 		""" calculate sum of springs lengths (slow computation)"""
+
 		sum = 0
 		for  i in range(self.morph.getNoConnections()):
 				sum += self.getDistance(i)

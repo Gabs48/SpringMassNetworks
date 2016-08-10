@@ -365,11 +365,17 @@ class SpaceList(object):
 			return difx, dify, difz
 		else: return difx, dify
 
+	def getArray(self):
+		""" returns an array with all the matrix values """
+
+		return np.reshape(self.matrix, (1, -1))
+
 	def ground(pos, speed):
 		for i in xrange(pos.getnoNodes()):
 			if pos.matrix[1,i] < 0: # Y component goes below the ground plane
 				pos.matrix[1,i]  =0 
 				speed.matrix[:,i] = 0 
+
 
 class Plot(object):
 	@staticmethod
