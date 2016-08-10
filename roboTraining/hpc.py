@@ -18,7 +18,7 @@ class Experiment(object):
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=5000, omega_=5, \
-		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1):
+		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=5000, refDist_=100):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
@@ -51,7 +51,7 @@ class Experiment(object):
 
 		plotter = Plotter(plot=False);
 		simulenv = SimulationEnvironment(timeStep=self.simTimeStep, simulationLength=int(self.simTime/self.simTimeStep), \
-		plot=plotter, perfMetr=self.perfMetr, controlPlot=self.controlPlot, refDist = 100, refPower = 10000)
+		plot=plotter, perfMetr=self.perfMetr, controlPlot=self.controlPlot, refDist=refDist_, refPower=refPower_)
 
 		trainscheme = TrainingScheme()
 		#trainscheme.createTrainVariable("omega", 0, self.maxOmega)
