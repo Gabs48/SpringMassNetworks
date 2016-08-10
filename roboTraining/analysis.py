@@ -28,6 +28,7 @@ class Analysis(object):
 		self.trainable = []
 		self.opt_type = []
 		self.sim_time = []
+		self.omega = []
 		self.ts = []
 		self.sl = []
 		self.k = []
@@ -98,6 +99,10 @@ class Analysis(object):
 							dico["max"] = float(tab[i + 2][params_ind[1] + 3])
 							vals.append(dico)
 				self.trainable.append(vals)
+
+				# Find default omega
+				omega_ind = findIndex(tab, "omega:")
+				self.omega.append(float(tab[omega_ind[0] + 1][omega_ind[1] + 2]))
 
 				# Find the optimization type
 				rand_type_ind = findIndex(tab, "noInstances:")
@@ -668,24 +673,35 @@ class Analysis(object):
 
 		# Fill values from loaded variables
 		for i in range(len(self.y)):
+
 			duplicate = False
 			assert self.sim_time[i] == sim_time, \
 				"For a meaningfull pareto graph, ensure the simulation times are the same for all data"
 			assert self.opt_type[i] == opt_type, \
 				"For a meaningfull pareto graph, ensure the optimization algorithms are the same for all data"
 
+			# Fetch iteration omega and ampl value
+			it_omega = None
+			for it in self.trainable[i]:
+				if it["name"] == "omega":
+					it_omega = it["max"]
+				elif it["name"] == "amplitude":
+					it_amplitude = it["max"]
+			if not it_omega:
+				it_omega = self.omega[i]
+
 			# If couple omega/ampli already existsn average with previous one
 			for j, om in enumerate(omega):
 				for k, am in enumerate(ampli):
-					if om == self.trainable[i]["omega"]["max"] and \
-						am == self.trainable[i]["amplitude"]["max"] and j == k:
+					if om == it_omega and \
+						am == it_amplitude and j == k:
 							dist[j].append(self.get_best_ind(index=i)[0])
 							duplicate = True
 
 			if duplicate == False:
 				dist.append([self.get_best_ind(index=i)[0]])
-				omega.append(self.maxomega[i])
-				ampli.append(self.maxampli[i])
+				omega.append(it_omega)
+				ampli.append(it_amplitude)
 				omega_res.append(np.sqrt(k_spring / mass))
 
 		# Average points with multiple values
