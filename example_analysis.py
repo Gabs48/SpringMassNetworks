@@ -30,3 +30,12 @@ if __name__ == "__main__":
 
 	# Nodes number value analysis
 	# an.nodes()
+
+	# Simulate best individu in each folder
+	# for path, subdirs, files in os.walk("/home/gabs48/edu/Data/pareto"):
+	# 	if not subdirs:
+	# 		if not os.path.isfile(path + "/sim.mp4"):
+	# 			an = Analysis(root=path, folder=".")
+	# 			an.load()
+	# 			score, index1, index2 = an.get_best_ind()
+	# 			an.simulate_ind(index1, index2, simName=path + "/sim" , movie=True, rc=False)
