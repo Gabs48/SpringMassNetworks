@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Options
-#PBS -N ParetoJob
+#PBS -N LongPowerEffJob
 #PBS -o stdout.$PBS_JOBID
 #PBS -e stderr.$PBS_JOBID
-#PBS -l walltime=0:15:00
-#PBS -l nodes=5:ppn=2
+#PBS -l walltime=60:00:00
+#PBS -l nodes=3:ppn=1
 #PBS -m e
 
 # Environment
@@ -20,7 +20,7 @@ module load freetype/2.6.3-intel-2016a
 module load mpi4py
 
 # Start script
-mpirun -np $n_proc ./example_hpc.py pareto
+mpirun -np $n_proc ./example_hpc.py simtime
 
 # Finalize
 echo "== End HPC Job =="

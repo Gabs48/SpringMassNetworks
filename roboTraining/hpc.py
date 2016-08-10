@@ -38,6 +38,8 @@ class Experiment(object):
 		self.maxAmplitude = maxAmplitude_
 		self.popSize = popSize_
 		self.noGen = int(self.maxIter / self.popSize)
+		self.refDist = refDist_
+		self.refPower = refPower_
 
 	def run(self):
 		"""Run the experiment"""
@@ -51,14 +53,14 @@ class Experiment(object):
 
 		plotter = Plotter(plot=False);
 		simulenv = SimulationEnvironment(timeStep=self.simTimeStep, simulationLength=int(self.simTime/self.simTimeStep), \
-		plot=plotter, perfMetr=self.perfMetr, controlPlot=self.controlPlot, refDist=refDist_, refPower=refPower_)
+		plot=plotter, perfMetr=self.perfMetr, controlPlot=self.controlPlot, refDist=self.refDist, refPower=self.refPower)
 
 		trainscheme = TrainingScheme()
 		#trainscheme.createTrainVariable("omega", 0, self.maxOmega)
 		trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
 		#trainscheme.createTrainVariable("restLength", np.min(morph.restLength[morph.restLength>0]), np.max(morph.restLength))
 		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
-		#trainscheme.createTrainVariable("spring", 0, 200)
+		trainscheme.createTrainVariable("spring", 0, 200)
 
 		saver = Save(None, self.fileName, self.folderName)
 		if self.optMethod == "CMA":
@@ -82,7 +84,7 @@ class Experiment(object):
 			" -- Total training time: " + "{:.1f}".format(t_tot)  + " s")
 		print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 			" -- Best score (" + self.perfMetr + "): {:.4f}".format(score)  + "\n")
-		train.save()
+		train.save(savePlot=False)
 		print(" == Experiment finished with the following parameters == \n\n  " + str(self.__dict__) + "\n")
 
 def createParetoVal(pool_n=1):
@@ -102,8 +104,8 @@ def createParetoVal(pool_n=1):
 def createSimTimeVal():
 	"""Return a 2D list of Simulation time and optimization methdd"""
 
-	st = [0.5, 1, 2, 5, 10, 20, 25]
-	opt =  ["CMA"]#, "Genetic", "Random"]
+	st = [15]#0.5, 1, 2, 5, 10, 20, 25]
+	opt =  ["CMA", "Genetic", "Random"]
 	liste = []
 
 	for s in st:

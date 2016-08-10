@@ -5,8 +5,8 @@ from roboTraining.hpc import *
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
 
-	trainingIt = 6000
-	simTime = 10
+	trainingIt = 20000
+	simTime = 15
 
 	# Get MPI info
 	comm = MPI.COMM_WORLD
@@ -68,8 +68,8 @@ if __name__ == "__main__":
 				index = i * size + rank
 				if index < len(arg_list):
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
-						" -- Experiment " + str(index+1) + " with Omega=" + \
-						str(arg_list[index][0]) + " and Amplitude=" + str(arg_list[index][1]))
+						" -- Experiment " + str(index+1) + " with SimTime=" + \
+						str(arg_list[index][0]) + " and Optmization=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="SimTime", simTime_=arg_list[index][0],\
 					maxIter_=trainingIt, optMethod_=arg_list[index][1])
 					e.run()
