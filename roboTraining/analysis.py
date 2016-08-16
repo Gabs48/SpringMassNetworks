@@ -621,30 +621,81 @@ class Analysis(object):
 			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
 			i += 1
 
-	def km(self):
+	def km(self, filename="results_km", show=False, save=True):
 		"""Perform specific analysis for a km batch"""
 
 		folder = "km_pic/"
 		mkdir_p(folder)
 
-		for i, score in enumerate(self.scores):
-			ext = num2str(self.k[i]) + "_" + num2str(self.m[i])
-			err_title = "Convergence error evolution with k=" + num2str(self.k[i]) + " and m=" + \
-				num2str(self.m[i])
-			evo_title = "Averaged optimization evolution with k=" + num2str(self.k[i]) + " and m=" + \
-				num2str(self.m[i])
-			gen_title = "Generation evolution with k=" + num2str(self.k[i]) + " training and m=" + \
-				num2str(self.m[i])
-			ss_title = "PC parameters evolution with k=" + num2str(self.k[i]) + " training and m=" + \
-				num2str(self.m[i])
-			err_filename = folder + "err_" + ext
-			evo_filename = folder + "evol_" + ext
-			gen_filename = folder + "gen_" + ext
-			ss_filename = folder + "exp_" + ext
-			self.plot_score_av(index=i, filename=evo_filename, title=evo_title)
-			self.plot_conv_err(index=i, filename=err_filename, title=err_title)
-			self.plot_gen(index=i, filename=gen_filename, title=gen_title)
-			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
+		
+		print(" -- Mass-spring Analysis of folder " + self.path + "--")
+
+		k = []
+		m = []
+		d = []
+		sim_time = self.sim_time[0]
+		opt_type = self.opt_type[0]
+
+		# Fill values from loaded variables
+		for i in range(len(self.y)):
+
+			duplicate = False
+			assert self.sim_time[i] == sim_time, \
+				"For a meaningfull pareto graph, ensure the simulation times are the same for all data"
+			assert self.opt_type[i] == opt_type, \
+				"For a meaningfull pareto graph, ensure the optimization algorithms are the same for all data"
+
+			# Fetch iteration k and m value
+			it_k = self.k[i]
+			it_m = self.m[i]
+
+			# If couple already existsn average with previous one
+			for j, spring in enumerate(k):
+				for l, mass in enumerate(m):
+					if spring == it_k and \
+						mass == it_m and j == l:
+							d[j].append(self.get_best_ind(index=i)[0])
+							duplicate = True
+
+			if duplicate == False:
+				d.append([self.get_best_ind(index=i)[0]])
+				k.append(it_k)
+				m.append(it_m)
+
+		# Average points with multiple values
+		n_av = []
+		for i in range(len(d)):
+			if  len(d[i]) > 1:
+				n_av.append(len(d[i]))
+			d[i] = sum(d[i]) / len(d[i])
+		if len(n_av) != 0:
+			print(" -- Averaging " + str(len(n_av)) + " graph points with on average " + \
+				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
+
+		# Sort lists
+		m, k, d = (list(t) for t in zip(*sorted(zip(m, k, d))))
+		c = []
+		for a in k:
+			c.append(float(1.0) / a)
+		n_k = len(k) / len(set(k))
+		n_m = len(m) / len(set(m))
+
+		# Plot distance as a fct of k in a graph for different m values
+		col = ["b-", "g-", "r-", "c-", "m-", "y-"]
+		fig, ax = Plot.initPlot()
+		for i in range(len(set(m))):
+			c_res = 1 / (25 * m[n_m*i])
+			print m[n_m*i], c_res, col[i%len(col)]
+			ax.plot(c[n_m*i:n_m*i+n_m], d[n_m*i:n_m*i+n_m], col[i%len(col)], label="m = " + num2str(m[n_m*i]) + " kg")
+			print col[i%len(col)]
+			ax.plot([c_res, c_res], [0, 0.6], col[i%len(col)] + "-")
+		plt.title(" Maximum scores in fct of compliance for " + str(len(self.y[0])) + " iterations " + opt_type + \
+			" optimizations with " + num2str(sim_time) + "s simulations")
+		Plot.configurePlot(fig, ax, 'Spring Compliance ($1/k$)','Maximum score', legendLocation='lower right', size='small')
+		ax.set_xlim([0, 0.06])
+		ax.set_ylim([0, 0.6])
+		if show: plt.show()
+		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 
 	def nodes(self):
 		"""Perform specific analysis for a nodes batch"""

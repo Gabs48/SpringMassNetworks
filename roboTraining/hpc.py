@@ -8,6 +8,7 @@ from utils import *
 import math
 from multiprocessing import *
 from mpi4py import MPI
+import numpy as np
 import platform
 import sys
 import datetime
@@ -117,8 +118,13 @@ def createSimTimeVal():
 def createKMVal():
 	"""Return a 2D list of spring constant and mass value"""
 
-	spring = [20, 50, 100, 200, 500]
-	mass =  [0.1, 0.5, 1, 2, 5, 10]
+	compliance = np.linspace(0.001, 0.1, num=30).tolist()
+	spring = []
+	for c in compliance:
+		spring.append(float(1)/c)
+	print spring
+	#spring = [0.5, 1, 2, 5 20, 50, 100, 200, 500]
+	mass =  [1]#[0.1, 0.5, 1, 2, 5, 10]
 	liste = []
 
 	for k in spring:

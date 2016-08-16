@@ -5,7 +5,7 @@ from roboTraining.hpc import *
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
 
-	trainingIt = 20000
+	trainingIt = 10000
 	simTime = 15
 
 	# Get MPI info
