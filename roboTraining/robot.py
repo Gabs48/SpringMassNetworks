@@ -467,10 +467,12 @@ class SpringMorphology(Morphology):
 
 	@staticmethod
 	def maxTimeStep(maximumSpringConstant, minimumWeight):
+
 		return np.pi / 5 * np.sqrt( 1.0 * minimumWeight / maximumSpringConstant )
 
 	@staticmethod
 	def checkConfig(maximumSpringConstant, minimumWeight, timeStep):
+
 		assert timeStep <= SpringMorphology.maxTimeStep( maximumSpringConstant, minimumWeight )
 
 class SpringMorphology3D(SpringMorphology):
@@ -875,28 +877,49 @@ class ClosedLoopSineControl(SineControl):
 		super(ClosedLoopSineControl, self).__init__(morph, amplitude=amplitude, phase=phase, omega=omega)
 
 		self.CL = False
-		self.modFactor = np.array([])
+		self.stepInput = np.array([])
+		self.closingLength = 0
+		self.closedLoopLength = 0
+		self.closingStep = 0
 
-	def closeLoop(self):
+	def closeLoop(self, closingLength=0, closedLoopLength=1):
 		""" Call this function to close the loop """
 
 		self.CL = True
+		self.closingLength = closingLength
+		self.closedLoopLength = closedLoopLength
 
 	def setStepInput(self, stepInput):
 		""" Set the controller output for the next time step from the simulation outputs """
 
-		self.modFactor = stepInput
+		self.stepInput = stepInput
 
 	def modulationFactorTime(self, time):
 		""" Redefine mod factor method in closed-loop"""
 
+		# If open-loop mode
 		if self.CL == False:
 			return super(ClosedLoopSineControl, self).modulationFactorTime(time)
+
+		# If closed-loop mode
 		else:
-			if self.firstStep:
-				self.firstStep = False
-				print(" -- Closing the Loop at time " + str(time) + "s --")
-			return self.modFactor
+			ol = super(ClosedLoopSineControl, self).modulationFactorTime(time)
+			cl = self.stepInput
+
+			if self.closingStep < self.closingLength:
+				if self.closingStep == 0:
+					print(" -- Starting to close the loop at time " + str(time) + "s --")
+
+				alpha = self.closingStep / float(self.closedLoopLength)
+				modFactor = alpha * cl + (1 - alpha) * ol 
+
+			else:
+				if self.closingStep == self.closingLength:
+					print(" -- Loop completely closed at time " + str(time) + "s -- ")
+				modFactor = cl
+
+			self.closingStep += 1
+			return modFactor
 
 class GenerativeControl(Control):
 	#URGENT check for syntax and logic errors (not yet used)

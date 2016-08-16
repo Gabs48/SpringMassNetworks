@@ -371,8 +371,13 @@ class TrainingSimulation(VerletSimulation):
 		signTime=None, wDistPlot=True, outputFilename="sinusoid", outputFolder="RC"):
 		""" Init the training test sim class and parent classes
 		 - omega is the desired output sinusoid frequency. It should correspond to the frequency of the MSN
-		 - train_phase is the proportion of time dedicated to training compared to 
-		 - output_filename is the filename for storing images of the driving and trained signals
+		 - transPhase is the proportion of time dedicated to transitoire dynamics before training
+		 - trainPhase is the proportion of time dedicated to training
+		 - outputFilename and outputFolder are set to save plotting if traingPlot is True
+		 - wDistPlot is set to plot the output neurons weight dustribution 
+		 - signTime can be set to reduce the phase impact to a significant part of the simulation. For instance, 
+		   if the simulation time is set to 50s, the signTime=30, then, the transitoire trinaing and running phases
+		   will only applys to 
 		"""
 		super(TrainingSimulation, self).__init__(simulEnv, robot)
 
@@ -598,17 +603,31 @@ class ForceTrainingSimulation(TrainingSimulation):
 	""" Extend the TrainingSimulation class to use FORCE online learning """
 
 	def __init__(self, simulEnv, robot, transPhase=0.1, trainPhase=0.5, trainingPlot=True, \
-		olPhase=0.5, signTime=None, wDistPlot=True, outputFilename="sinusoid", outputFolder="RC"):
-		""" Init class """
+		openloopPhase=0, closingPhase=1, signTime=None, wDistPlot=True, outputFilename="sinusoid", \
+		outputFolder="RC", printPhase=True):
+		""" Init class: phases are reparted like this
+		- Transition phase: nothing happens here, we let the dynamics stabilizes
+		- Training phase: here we do online weights value training. The trianing phase itself is divided in three parts:
+			- OpenLoop phase: here, we start training but we won't feed the generated signal until it stabilizes
+			- Closing phase: here, we gradually mix the feedback signal sith the target signal
+			- The rest is full closed-loop training
+		- The rest is dedicates to Run phase
+		 """
 
 		# Fix here the training and running phase if needed
 		super(ForceTrainingSimulation, self).__init__(simulEnv, robot, transPhase=transPhase,  \
 			trainPhase=trainPhase, trainingPlot=trainingPlot, wDistPlot=wDistPlot, \
 			signTime=signTime, outputFilename=outputFilename, outputFolder=outputFolder)
 
-		# Constants
-		self.olPhase = olPhase
-		self.olLength = int(np.floor(self.olPhase * self.trainLength))
+		# Class variables
+		self.openloopPhase = openloopPhase
+		self.closingPhase = closingPhase
+		self.openloopLength = int(np.floor(self.openloopPhase * self.trainLength))
+		self.closedLoopLength = self.trainLength - self.openloopLength
+		self.closingLength = int(np.floor(self.closingPhase * self.closedLoopLength))
+		self.printPhase = printPhase
+
+		# Algorithm constants
 		self.alpha = 0.01
 
 		# Algorithm matrices
@@ -663,14 +682,48 @@ class ForceTrainingSimulation(TrainingSimulation):
 		self.p.append(p)
 
 		# start Closed-Loop mode
-		if self.trainIt == self.olLength:
-			self.robot.control.closeLoop()
+		if self.trainIt == self.openloopLength:
+			self.robot.control.closeLoop(closingLength=self.closingLength, closedLoopLength=self.closedLoopLength)
 
 		# Pass the signal estimation to the controller to close the loop
 		stepInput = array2Connections(yTrained, self.robot.morph.connections)
 		self.robot.control.setStepInput(stepInput)
 
 		return
+
+	def printSim(self):
+		""" Save some useful information regarding the simulation proceeding """
+
+		with open("./" + self.outputFolder + "/" + self.outputFilename + ".txt", "rw") as file:
+			file.write("   Phase name    |  length  |  t_start |  t_stop |")
+			file.write("------------------------------------------------")
+			file.write("   Transitoire   | " + str(self.transLength) + " | " + \
+				str(self.transLength*self.simulEnv.timeStep) + " | " + \
+				str(self.trainLength*self.simulEnv.timeStep) + " |")
+			file.write("    Training     | " + str(self.transLength) + " | " + \
+				str(self.trainLength*self.simulEnv.timeStep) + " | " + \
+				str((self.trainLength+self.transLength)*self.simulEnv.timeStep) + " |")
+			file.write("     Running     | " + str(self.transLength) + " | " + \
+				str((self.trainLength+self.transLength)*self.simulEnv.timeStep) + " | " + \
+				str(self.simulEnv.simulationLength*self.simulEnv.timeStep) + " |")
+			file.write("    Open Loop    | " + str(self.transLength) + " | " + \
+				str(self.trainLength*self.simulEnv.timeStep) + " | " + \
+				str((self.trainLength+self.openloopLength)*self.simulEnv.timeStep) + " |")
+			file.write("     Closing     | " + str(self.transLength) + " | " + \
+				str((self.trainLength+self.openloopLength)*self.simulEnv.timeStep) + " |" + \
+				str((self.trainLength+self.openloopLength+self.closedLoopLength)*self.simulEnv.timeStep) + " |")
+			file.write("   Closed Loop   | " + str(self.transLength) + " | " + \
+				str((self.trainLength+self.openloopLength+self.closedLoopLength)*self.simulEnv.timeStep) + " | " + \
+				str(self.simulEnv.simulationLength*self.simulEnv.timeStep) + " |")
+			file.close()
+
+	def runStep(self):
+		""" Reimplement runStep to conclude with custom plot and prints """
+
+		super(ForceTrainingSimulation, self).runStep()
+		if self.iterationNumber == self.simulEnv.simulationLength - 1:
+			if self.printPhase:
+				self.printSim()
 
 	def train(self):
 		""" Nothing to do here as FORCE is an online method """
