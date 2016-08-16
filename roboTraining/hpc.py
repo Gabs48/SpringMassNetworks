@@ -122,7 +122,6 @@ def createKMVal():
 	spring = []
 	for c in compliance:
 		spring.append(float(1)/c)
-	print spring
 	#spring = [0.5, 1, 2, 5 20, 50, 100, 200, 500]
 	mass =  [1]#[0.1, 0.5, 1, 2, 5, 10]
 	liste = []
