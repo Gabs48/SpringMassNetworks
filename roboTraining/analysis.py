@@ -111,6 +111,8 @@ class Analysis(object):
 					self.opt_type.append("RANDOM")
 				elif cma_type_ind != [-1, -1]:
 					self.opt_type.append("CMA")
+				else:
+					self.opt_type.append("GENETIC")
 
 				# Find simulation time
 				ts_ind = findIndex(tab, "timeStep:")
@@ -120,11 +122,14 @@ class Analysis(object):
 				self.sim_time.append(float(tab[ts_ind[0]][ts_ind[1] + 1])*float(tab[sl_ind[0]][sl_ind[1] + 1]))
 
 				# Find population size
-				ps_ind = findIndex(tab, "popSize:")
-				if ps_ind == [-1, -1] and self.opt_type[-1] == "CMA":
+				if self.opt_type[-1] == "CMA":
+					ps_ind = findIndex(tab, "popSize:")
 					self.ps.append(int(4 + math.floor(3 * math.log(len(vals) * 54))))
-				else:
+				elif self.opt_type[-1] == "GENETIC":
+					ps_ind = findIndex(tab, "populationSize:")
 					self.ps.append(float(tab[ps_ind[0]][ps_ind[1] + 1]))
+				else:
+					self.ps.append(1)
 
 				# Find Nodes number
 				nn_ind = findIndex(tab, "noNodes:")
@@ -356,11 +361,11 @@ class Analysis(object):
 		for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
 			item.set_fontsize(17)
 
-		plt.plot(self.x[index], self.y_min[index] ,"r-", label="maximum")
+		plt.plot(self.x[index], self.y_max[index] ,"r-", label="maximum")
 		plt.plot(self.x_std[index], self.y_std_a[index] ,"r--", linewidth=0.2, label="max std dev")
 		plt.plot(self.x_av[index], self.y_av[index], "g-", label="average score")
 		plt.plot(self.x_std[index], self.y_std_b[index] ,"b--", linewidth=0.2, label="min std dev")
-		plt.plot(self.x[index], self.y_max[index], "b-", label="minimum")
+		plt.plot(self.x[index], self.y_min[index], "b-", label="minimum")
 		if title != None:
 			plt.title(title)
 		else:
@@ -529,7 +534,8 @@ class Analysis(object):
 
 			return max_t, max_index1, max_index2
 
-	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, movie=True):
+	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, movie=True,
+		transPhase=0.2, trainingPhase=0.6, openloopPhase=0.2, closingLoopPhase=0.6):
 		"""Render a simulation movie for a given individu"""
 
 		# Init variables
@@ -568,8 +574,10 @@ class Analysis(object):
 		# Do the simulation
 		if rc:
 			simul = ForceTrainingSimulation(simulEnv, robot, \
-				# signTime=self.ts[index1] * self.sl[index1], \
-				outputFilename="training")
+				transPhase=transPhase, trainPhase=trainingPhase, openloopPhase=openloopPhase, \
+				closingPhase=closingLoopPhase, outputFilename="training", \
+				outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
+				str(openloopPhase) + "_" + str(closingLoopPhase))
 		else:
 			simul = VerletSimulation(simulEnv, robot)
 		score = simul.runSimulation();
@@ -593,7 +601,9 @@ class Analysis(object):
 			ext = self.opt_type[i] + "_" + num2str(self.sim_time[i]) + "s"
 			err_title = "Convergence error evolution with " + self.opt_type[i] + " training and " + \
 				num2str(self.sim_time[i]) + " s simulations"
-			evo_title = "Averaged optimization evolution with " + self.opt_type[i] + " training and " + \
+			evo_av_title = "Averaged optimization evolution with " + self.opt_type[i] + " training and " + \
+				num2str(self.sim_time[i]) + " s simulations"
+			evo_title = "Otimization evolution with " + self.opt_type[i] + " training and " + \
 				num2str(self.sim_time[i]) + " s simulations"
 			gen_title = "Generation evolution with " + self.opt_type[i] + " training and " + \
 				num2str(self.sim_time[i]) + " s simulations"
@@ -601,9 +611,11 @@ class Analysis(object):
 				num2str(self.sim_time[i]) + " s simulations"
 			err_filename = folder + "err_" + ext
 			evo_filename = folder + "evol_" + ext
+			evo_av_filename = folder + "av_evol_" + ext
 			gen_filename = folder + "gen_" + ext
 			ss_filename = folder + "exp_" + ext
-			self.plot_score_av(index=i, filename=evo_filename, title=evo_title)
+			self.plot_score(index=i, filename=evo_filename, title=evo_title)
+			self.plot_score_av(index=i, filename=evo_av_filename, title=evo_av_title)
 			self.plot_conv_err(index=i, filename=err_filename, title=err_title)
 			self.plot_gen(index=i, filename=gen_filename, title=gen_title)
 			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
