@@ -134,8 +134,8 @@ if __name__ == "__main__":
 				index = i * size + rank
 				if index < len(arg_list):
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
-						" -- Experiment " + str(index+1) + " with k=" + \
-						str(arg_list[index][0]) + " and m=" + str(arg_list[index][1]))
+						" -- Experiment " + str(index+1) + " with Pref=" + \
+						str(arg_list[index][0]) + " and Dref=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="KM", refPower_=arg_list[index][0],\
 					simTime_=simTime, maxIter_=trainingIt, refDist_=arg_list[index][1])
 					e.run()
