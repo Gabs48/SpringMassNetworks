@@ -156,3 +156,10 @@ def createRefVal(pool_n=1):
 				liste.append([p, d])
 
 	return liste
+
+def createRefPowerParetoVal(pool_n=1):
+	"""Return a 2D list of reference distance and power"""
+
+	power =  np.linspace(0, 10000, num=10).tolist()
+
+	return power

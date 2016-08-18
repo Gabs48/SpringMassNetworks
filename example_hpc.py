@@ -136,8 +136,29 @@ if __name__ == "__main__":
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 						" -- Experiment " + str(index+1) + " with Pref=" + \
 						str(arg_list[index][0]) + " and Dref=" + str(arg_list[index][1]))
-					e = Experiment(fileName_=fileName, folderName_="KM", refPower_=arg_list[index][0],\
+					e = Experiment(fileName_=fileName, folderName_="Reference", refPower_=arg_list[index][0],\
 					simTime_=simTime, maxIter_=trainingIt, refDist_=arg_list[index][1])
+					e.run()
+
+		#  Different reference for energy and distance scores
+		if sys.argv[1].lower() == "powerEff":
+
+			# Get arg list and estimate iteration number and time
+			arg_list = createRefPowerParetoVal()
+			fileName = "Machine-" + str(rank)
+			n_iteration = int(math.ceil(len(arg_list)/float(size)))
+			print(" == Running " +  str(len(arg_list)) + " Power pareto experiments on " + str(size) + \
+				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
+				"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
+
+			# Simulate multiple time if the number of cores does not correspond to number of points
+			for i in range(n_iteration):
+				index = i * size + rank
+				if index < len(arg_list):
+					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
+						" -- Experiment " + str(index+1) + " with P ref=" + str(arg_list[index]))
+					e = Experiment(fileName_=fileName, folderName_="PowerEff", refPower_=arg_list[index],\
+					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereffratio")
 					e.run()
 
 	else:
