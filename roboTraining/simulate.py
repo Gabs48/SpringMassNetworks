@@ -136,6 +136,7 @@ class Plotter(object):
 				os.remove(self.movieName + ".mp4")
 			except OSError:
 				pass
+			print "ffmpeg -r " + str(self.fps) + " -s 1100x700"+  " -i "+ self.IMGname + " -c:v libx264 -r 30 -pix_fmt yuv420p " + self.movieName + ".mp4"""
 			os.system("ffmpeg -r " + str(self.fps) + " -s 1100x700"+  " -i "+ self.IMGname + " -c:v libx264 -r 30 -pix_fmt yuv420p " +
 				 self.movieName + ".mp4""")
 			for fname in self.fileList:
@@ -446,6 +447,7 @@ class TrainingSimulation(VerletSimulation):
 		""" Add training data for a given step """
 
 		posArray = self.robot.getState().pos.getArray()
+
 		if self.xTraining.size == 0:
 			self.xTraining = posArray
 		else:
@@ -477,7 +479,7 @@ class TrainingSimulation(VerletSimulation):
 		""" Run the neuron for a given step """
 
 		# Get position and compute new signal estimation
-		posArray = self.robot.getState().pos.getArray()
+		posArray = np.hstack((self.robot.getState().speed.getArray(), self.robot.getState().pos.getArray()))
 		y_est = np.asarray(np.dot(posArray, self.weightMatrix))
 
 		# Store estimation in vector
@@ -571,10 +573,10 @@ class TrainingSimulation(VerletSimulation):
 
 			plt.plot(self.timeArray[-n:], self.yTraining[-n:, i] ,"r--", label="Training signal")
 			plt.plot(self.timeArray[-n:], np.zeros(n) ,"k-")
-			plt.plot(self.timeArray[n_trans+1:n-n_run], self.yTrained[1:n-n_run-n_trans:, i] ,"y-", label="Trained sig (train)")
+			plt.plot(self.timeArray[n_trans+1:n-n_run], self.yTrained[1:n-n_run-n_trans, i] ,"y-", label="Trained sig (train)")
 			if n_run != 0:
 				plt.plot(self.timeArray[-n_run:], self.yTrained[-n_run:, i] ,"b-", label="Trained sig (run)")
-				plt.plot(self.timeArray[-n_run:], y_err[-n_run:] ,"g-", label="Error signal")
+				#plt.plot(self.timeArray[-n_run:], y_err[-n_run:] ,"g-", label="Error signal")
 
 
 			plt.title("Spring control force " + str(i+1) + ". Maximum error =  {:.2f} %".format(100 * np.max(y_err)) + \
@@ -603,14 +605,13 @@ class ForceTrainingSimulation(TrainingSimulation):
 	""" Extend the TrainingSimulation class to use FORCE online learning """
 
 	def __init__(self, simulEnv, robot, transPhase=0.1, trainPhase=0.5, trainingPlot=True, \
-		openloopPhase=0, closingPhase=1, signTime=None, wDistPlot=True, outputFilename="sinusoid", \
+		alpha=1, beta=0.1, openPhase=0.1, signTime=None, wDistPlot=True, outputFilename="sinusoid", \
 		outputFolder="RC", printPhase=True):
 		""" Init class: phases are reparted like this
 		- Transition phase: nothing happens here, we let the dynamics stabilizes
 		- Training phase: here we do online weights value training. The trianing phase itself is divided in three parts:
 			- OpenLoop phase: here, we start training but we won't feed the generated signal until it stabilizes
 			- Closing phase: here, we gradually mix the feedback signal sith the target signal
-			- The rest is full closed-loop training
 		- The rest is dedicates to Run phase
 		 """
 
@@ -620,15 +621,15 @@ class ForceTrainingSimulation(TrainingSimulation):
 			signTime=signTime, outputFilename=outputFilename, outputFolder=outputFolder)
 
 		# Class variables
-		self.openloopPhase = openloopPhase
-		self.closingPhase = closingPhase
-		self.openloopLength = int(np.floor(self.openloopPhase * self.trainLength))
-		self.closedLoopLength = self.trainLength - self.openloopLength
-		self.closingLength = int(np.floor(self.closingPhase * self.closedLoopLength))
+		self.openPhase = openPhase
+		self.openLength = int(np.floor(self.openPhase * self.trainLength))
+		self.closedPhase = 1 - self.openPhase
+		self.closedLength =  int(np.floor(self.closedPhase * self.trainLength))
 		self.printPhase = printPhase
 
 		# Algorithm constants
-		self.alpha = 0.01
+		self.alpha = alpha
+		self.beta = beta
 
 		# Algorithm matrices
 		self.trainIt = 0
@@ -641,11 +642,13 @@ class ForceTrainingSimulation(TrainingSimulation):
 		""" Add training data for a given step """
 
 		# Copy input, and output
-		x = np.mat(self.robot.getState().pos.getArray().T)
+		#x = np.mat(self.robot.getState().pos.getArray().T)
+		x = np.mat(np.vstack((self.robot.getState().speed.getArray().T, self.robot.getState().pos.getArray().T)))
 		y = np.mat(self.yTraining[self.iterationNumber])
 
 		# If first iteration, init with random wieghts
 		if self.trainIt == 0:
+			self.N = x.shape[0]
 			w = np.random.rand(self.N, self.O)
 			p = np.identity(self.N) / self.alpha
 			yTrained = np.asarray(w.T * x).T
@@ -682,8 +685,8 @@ class ForceTrainingSimulation(TrainingSimulation):
 		self.p.append(p)
 
 		# start Closed-Loop mode
-		if self.trainIt == self.openloopLength:
-			self.robot.control.closeLoop(closingLength=self.closingLength, closedLoopLength=self.closedLoopLength)
+		if self.trainIt == self.openLength:
+			self.robot.control.closeLoop(self.closedLength, beta=self.beta)
 
 		# Pass the signal estimation to the controller to close the loop
 		stepInput = array2Connections(yTrained, self.robot.morph.connections)
@@ -694,27 +697,28 @@ class ForceTrainingSimulation(TrainingSimulation):
 	def printSim(self):
 		""" Save some useful information regarding the simulation proceeding """
 
-		with open("./" + self.outputFolder + "/" + self.outputFilename + ".txt", "rw") as file:
-			file.write("   Phase name    |  length  |  t_start |  t_stop |")
-			file.write("------------------------------------------------")
-			file.write("   Transitoire   | " + str(self.transLength) + " | " + \
-				str(self.transLength*self.simulEnv.timeStep) + " | " + \
-				str(self.trainLength*self.simulEnv.timeStep) + " |")
-			file.write("    Training     | " + str(self.transLength) + " | " + \
-				str(self.trainLength*self.simulEnv.timeStep) + " | " + \
-				str((self.trainLength+self.transLength)*self.simulEnv.timeStep) + " |")
-			file.write("     Running     | " + str(self.transLength) + " | " + \
-				str((self.trainLength+self.transLength)*self.simulEnv.timeStep) + " | " + \
-				str(self.simulEnv.simulationLength*self.simulEnv.timeStep) + " |")
-			file.write("    Open Loop    | " + str(self.transLength) + " | " + \
-				str(self.trainLength*self.simulEnv.timeStep) + " | " + \
-				str((self.trainLength+self.openloopLength)*self.simulEnv.timeStep) + " |")
-			file.write("     Closing     | " + str(self.transLength) + " | " + \
-				str((self.trainLength+self.openloopLength)*self.simulEnv.timeStep) + " |" + \
-				str((self.trainLength+self.openloopLength+self.closedLoopLength)*self.simulEnv.timeStep) + " |")
-			file.write("   Closed Loop   | " + str(self.transLength) + " | " + \
-				str((self.trainLength+self.openloopLength+self.closedLoopLength)*self.simulEnv.timeStep) + " | " + \
-				str(self.simulEnv.simulationLength*self.simulEnv.timeStep) + " |")
+		with open("./" + self.outputFolder + "/" + self.outputFilename + ".txt", "w+") as file:
+			file.write("  Phase name   |  length  |  t_start |  t_stop |\n")
+			file.write("------------------------------------------------\n")
+			file.write("  Transitoire  |   " + str(self.transLength) + "   |   " + \
+				str(0.0) + "    |   " + \
+				str(self.transLength*self.simulEnv.timeStep) + "  |\n")
+			file.write("  Training     |   " + str(self.trainLength) + "   |   " + \
+				str(self.transLength*self.simulEnv.timeStep) + "   |   " + \
+				str((self.trainLength+self.transLength)*self.simulEnv.timeStep) + "  |\n")
+			file.write("  Running      |   " + str(self.runLength) + "   |   " + \
+				str((self.trainLength+self.transLength)*self.simulEnv.timeStep) + "   |   " + \
+				str(self.simulEnv.simulationLength*self.simulEnv.timeStep) + "  |\n")
+			file.write("------------------------------------------------\n")
+
+			file.write("  Open Loop    |   " + str((self.openLength)) + "   |   " + \
+				str(self.transLength*self.simulEnv.timeStep) + "   |   " + \
+				str((self.transLength+self.openLength)*self.simulEnv.timeStep) + "  |\n")
+			file.write("  Closing Loop |   " + str(self.closedLength) + "   |   " + \
+				str((self.transLength+self.openLength)*self.simulEnv.timeStep) + "   |   " + \
+				str((self.transLength+self.openLength+self.closedLength)*self.simulEnv.timeStep) + "  |\n")
+			file.write("------------------------------------------------\n")
+			file.write("Parameters: alpha=" + str(self.alpha) + "     beta=" + str(self.beta))
 			file.close()
 
 	def runStep(self):
@@ -729,6 +733,8 @@ class ForceTrainingSimulation(TrainingSimulation):
 		""" Nothing to do here as FORCE is an online method """
 
 		self.weightMatrix = self.w[-1]
+		if self.wDistPlot:
+			self.plotW()
 
 		# Start Closed-Loop mode
 		print " -- Training phase finished -- "

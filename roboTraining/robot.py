@@ -882,12 +882,12 @@ class ClosedLoopSineControl(SineControl):
 		self.closedLoopLength = 0
 		self.closingStep = 0
 
-	def closeLoop(self, closingLength=0, closedLoopLength=1):
+	def closeLoop(self, closedLength, beta=0.1):
 		""" Call this function to close the loop """
 
 		self.CL = True
-		self.closingLength = closingLength
-		self.closedLoopLength = closedLoopLength
+		self.beta = float(beta)
+		self.closedLength = closedLength
 
 	def setStepInput(self, stepInput):
 		""" Set the controller output for the next time step from the simulation outputs """
@@ -906,16 +906,13 @@ class ClosedLoopSineControl(SineControl):
 			ol = super(ClosedLoopSineControl, self).modulationFactorTime(time)
 			cl = self.stepInput
 
-			if self.closingStep < self.closingLength:
-				if self.closingStep == 0:
-					print(" -- Starting to close the loop at time " + str(time) + "s --")
+			if self.closingStep == 0:
+				print(" -- Starting to close the loop at time " + str(time) + "s --")
 
-				alpha = self.closingStep / float(self.closedLoopLength)
-				modFactor = alpha * cl + (1 - alpha) * ol 
-
+			if self.closingStep < self.closedLength:
+				factor = self.beta * self.closingStep / self.closedLength
+				modFactor = factor * cl + (1 - factor) * ol
 			else:
-				if self.closingStep == self.closingLength:
-					print(" -- Loop completely closed at time " + str(time) + "s -- ")
 				modFactor = cl
 
 			self.closingStep += 1

@@ -377,7 +377,7 @@ class Analysis(object):
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 		plt.close()
 
-	def plot_conv_err(self, index=0, filename="results_score_conv_err", title=None, window=None, show=False, save=True):
+	def plot_conv_err(self, index=0, filename="results_score_conv_err", title=None, show=False, save=True):
 		"""Plot convergence error for a given file"""
 
 		if not self.y_max:
@@ -458,6 +458,66 @@ class Analysis(object):
 		if save: plt.savefig(filename + "_av.png", format='png', dpi=300)
 		plt.close()
 
+	def plot_noise_sim(self, index=0, filename="results_noise_sim", title=None, nPoints=75, window=15, show=False, save=True):
+		"""Perform simulations for different values of noise with the best individu of a file 
+		and plot the results"""
+
+		print(" -- Printing noise simulation graph for file " + self.filenames[index])
+
+		noiseArr = np.logspace(-8, 0, num=nPoints)
+		if window%2 == 0:
+			noiseArr_av = noiseArr[window/2:nPoints-window/2+1]
+		else:
+			noiseArr_av = noiseArr[window/2:nPoints-window/2]
+		distArr = np.zeros(nPoints)
+		powerArr = np.zeros(nPoints)
+
+		for i in range(nPoints):
+			noise = noiseArr[i]
+			print(" -- Simulation " + str(i+1) + "/" + str(nPoints) + " : simulation noise value = " + str(noise) + " -- ")
+			bestIndex = np.argmax(self.y[index])
+			[distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, simNoise=noise)
+
+		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
+		fig, ax = Plot.initPlot()
+		ax.semilogx(noiseArr, distArr, 'r.', label = "Noisy simulation scores" )
+		ax.semilogx(noiseArr_av, averageArr, 'b-', label = "Score average")
+		plt.title("Simulation accuracy with increasing simulation relative noise")
+		Plot.configurePlot(fig, ax, "Relative noise" + r'$ \ \sigma$ on simulation step values', "Distance Traveled [m]", legend = False)
+		if show: plt.show()
+		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		plt.close()
+
+	def plot_noise_params(self, index=0, filename="results_noise_params", title=None, nPoints=75, window=15, show=False, save=True):
+		"""Perform simulations for different values of noise on the parameters with the best individu of a file 
+		and plot the results"""
+
+		print(" -- Printing noise parameters graph for file " + self.filenames[index])
+
+		noiseArr = np.logspace(-8, 0, num=nPoints)
+		if window%2 == 0:
+			noiseArr_av = noiseArr[window/2:nPoints-window/2+1]
+		else:
+			noiseArr_av = noiseArr[window/2:nPoints-window/2]
+		distArr = np.zeros(nPoints)
+		powerArr = np.zeros(nPoints)
+
+		for i in range(nPoints):
+			noise = noiseArr[i]
+			print(" -- Simulation " + str(i+1) + "/" + str(nPoints) + " : parameters noise value = " + str(noise) + " -- ")
+			bestIndex = np.argmax(self.y[index])
+			[distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, paramNoise=noise)
+
+		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
+		fig, ax = Plot.initPlot()
+		ax.semilogx(noiseArr, distArr, 'r.', label = "Noisy parameters scores" )
+		ax.semilogx(noiseArr_av, averageArr, 'b-', label = "Score average")
+		plt.title("Simulation accuracy with increasing parameters relative noise")
+		Plot.configurePlot(fig, ax, "Relative noise" + r'$ \ \sigma$ on individu parameters', "Distance Traveled [m]", legend = False)
+		if show: plt.show()
+		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		plt.close()
+
 	def plot_all_scores(self, filename="results_score", show=False, save=True):
 		"""Plot score evolution for a all files. This can take several minutes"""
 
@@ -501,6 +561,26 @@ class Analysis(object):
 			self.plot_state_space(index=i, filename=filename + "_" + str(i), show=show, save=save)
 			i += 1
 
+	def plot_all_noise_sims(self, filename="results_noise_sim", show=False, save=True):
+		"""Plot accuracy evoluation in noisy simulation for all files of the current folder"""
+
+		print(" -- Printing noise simulation evolution for each file. This can take a while -- ")
+
+		i = 0
+		for y in self.y:
+			self.plot_noise_sim(index=i, filename=filename + "_" + str(i), show=show, save=save)
+			i += 1
+
+	def plot_all_noise_params(self, filename="results_noise_params", show=False, save=True):
+		"""Plot accuracy evoluation when loading noisy parameters for all files of the current folder"""
+
+		print(" -- Printing noise parameters evolution for each file. This can take a while -- ")
+
+		i = 0
+		for y in self.y:
+			self.plot_noise_params(index=i, filename=filename + "_" + str(i), show=show, save=save)
+			i += 1
+
 	def get_best_ind(self, index=None):
 		"""Return best individu score, file index and place index"""
 
@@ -535,7 +615,7 @@ class Analysis(object):
 			return max_t, max_index1, max_index2
 
 	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, movie=True,
-		transPhase=0.2, trainingPhase=0.6, openloopPhase=0.2, closingLoopPhase=0.6):
+		transPhase=0.2, trainingPhase=0.6, openPhase=0.2, alpha=1, beta=0.9, simNoise=0, paramNoise=0):
 		"""Render a simulation movie for a given individu"""
 
 		# Init variables
@@ -564,6 +644,12 @@ class Analysis(object):
 		for param in self.trainable[index1]:
 			trainscheme.createTrainVariable(param["name"], param["min"], param["max"])
 		paramMatrix = trainscheme.loadCSV(parameterFilename, index2, len(self.trainable[index1]))
+		if paramNoise != 0:
+			paramMatrix = paramMatrix + np.random.standard_normal(paramMatrix.shape) * paramNoise
+			l_vals = paramMatrix < 0.0
+			h_vals = paramMatrix > 1.0
+			paramMatrix[l_vals] = 0.0
+			paramMatrix[h_vals] = 1.0
 		trainscheme.normalizedMatrix2robot(paramMatrix, robot)
 
 		# Create the simulation
@@ -574,18 +660,23 @@ class Analysis(object):
 		# Do the simulation
 		if rc:
 			simul = ForceTrainingSimulation(simulEnv, robot, \
-				transPhase=transPhase, trainPhase=trainingPhase, openloopPhase=openloopPhase, \
-				closingPhase=closingLoopPhase, outputFilename="training", \
+				transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
+				alpha=alpha, beta=beta, outputFilename="training", \
 				outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
-				str(openloopPhase) + "_" + str(closingLoopPhase))
+				str(openPhase) + "_" + str(alpha) + "_" + str(beta))
 		else:
-			simul = VerletSimulation(simulEnv, robot)
+			if simNoise !=  0:
+				simul = NoisyVerletSimulation(simulEnv, robot, noise=simNoise)
+			else:
+				simul = VerletSimulation(simulEnv, robot)
 		score = simul.runSimulation();
 
 		print(" -- Simulation terminated with score {:.4f}".format(score) + \
 			". Distance: " + str(simul.getDistance()) + " and Power: " + str(robot.getPower()) + " -- ")
 		if movie:
 			print(" -- Video saved in file " + simName + ".mp4 --")
+
+		return [simul.getDistance(), robot.getPower()]
 
 	## ------------------- Specific Simulation types ---------------------------
 
@@ -621,7 +712,7 @@ class Analysis(object):
 			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
 			i += 1
 
-	def km(self, filename="results_km", show=False, save=True):
+	def km(self, filename="results_km", sensibility=False, show=False, save=True):
 		"""Perform specific analysis for a km batch"""
 
 		folder = "km_pic/"
@@ -685,9 +776,7 @@ class Analysis(object):
 		fig, ax = Plot.initPlot()
 		for i in range(len(set(m))):
 			c_res = 1 / (25 * m[n_m*i])
-			print m[n_m*i], c_res, col[i%len(col)]
 			ax.plot(c[n_m*i:n_m*i+n_m], d[n_m*i:n_m*i+n_m], col[i%len(col)], label="m = " + num2str(m[n_m*i]) + " kg")
-			print col[i%len(col)]
 			ax.plot([c_res, c_res], [0, 0.6], col[i%len(col)] + "-")
 		plt.title(" Maximum scores in fct of compliance for " + str(len(self.y[0])) + " iterations " + opt_type + \
 			" optimizations with " + num2str(sim_time) + "s simulations")
@@ -696,6 +785,9 @@ class Analysis(object):
 		ax.set_ylim([0, 0.6])
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+
+		if sensibility:
+			print "Il faut faire ca!"
 
 	def nodes(self):
 		"""Perform specific analysis for a nodes batch"""
