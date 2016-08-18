@@ -5,8 +5,8 @@ from roboTraining.hpc import *
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
 
-	trainingIt = 10000
-	simTime = 15
+	trainingIt = 20000
+	simTime = 30
 
 	# Get MPI info
 	comm = MPI.COMM_WORLD
@@ -116,6 +116,28 @@ if __name__ == "__main__":
 						str(arg_list[index][0]) + " and m=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="KM", spring_=arg_list[index][0],\
 					simTime_=simTime, maxIter_=trainingIt, mass_=arg_list[index][1])
+					e.run()
+
+		#  Different reference for energy and distance scores
+		if sys.argv[1].lower() == "ref":
+
+			# Get arg list and estimate iteration number and time
+			arg_list = createRefVal()
+			fileName = "Machine-" + str(rank)
+			n_iteration = int(math.ceil(len(arg_list)/float(size)))
+			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
+				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
+				"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
+
+			# Simulate multiple time if the number of cores does not correspond to number of points
+			for i in range(n_iteration):
+				index = i * size + rank
+				if index < len(arg_list):
+					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
+						" -- Experiment " + str(index+1) + " with k=" + \
+						str(arg_list[index][0]) + " and m=" + str(arg_list[index][1]))
+					e = Experiment(fileName_=fileName, folderName_="KM", refPower_=arg_list[index][0],\
+					simTime_=simTime, maxIter_=trainingIt, refDist_=arg_list[index][1])
 					e.run()
 
 	else:

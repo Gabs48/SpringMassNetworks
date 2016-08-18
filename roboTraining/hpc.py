@@ -142,3 +142,17 @@ def createNodesVal():
 			liste.append([n])
 
 	return liste
+
+def createRefVal(pool_n=1):
+	"""Return a 2D list of reference distance and power"""
+
+	dist = [100, 200, 400]
+	power =  [2000, 5000]
+	liste = []
+
+	for i in range(pool_n):
+		for p in power:
+			for d in dist:
+				liste.append([p, d])
+
+	return liste
