@@ -141,7 +141,7 @@ if __name__ == "__main__":
 					e.run()
 
 		#  Different reference for energy and distance scores
-		if sys.argv[1].lower() == "powerEff":
+		if sys.argv[1].lower() == "powereff":
 
 			# Get arg list and estimate iteration number and time
 			arg_list = createRefPowerParetoVal()

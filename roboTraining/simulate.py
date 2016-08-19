@@ -157,7 +157,7 @@ class SimulationEnvironment(object):
 		self.verlet = True;
 		self.controlPlot = controlPlot
 		self.perfMetr = perfMetr # either "dist" or "powereff"
-		if self.perfMetr == "powereff":
+		if self.perfMetr == "powereff" or self.perfMetr == "powereffratio":
 			assert refDist is not 0, refPower is not 0
 			self.refDist = refDist
 			self.refPower = refPower
@@ -232,7 +232,7 @@ class Simulation(object):
 		""" Return a score to characterize the simulation depending on the chosen performance metric """
 
 		distance = self.getDistance()
-		speed = self.
+		speed = distance / (self.iterationNumber * self.simulEnv.timeStep)
 		if self.simulEnv.perfMetr == 'dist':
 			return distance
 		elif self.simulEnv.perfMetr == 'powereff':
