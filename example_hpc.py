@@ -5,8 +5,8 @@ from roboTraining.hpc import *
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
 
-	trainingIt = 20000
-	simTime = 30
+	trainingIt = 2000
+	simTime = 600
 
 	# Get MPI info
 	comm = MPI.COMM_WORLD
@@ -168,5 +168,5 @@ if __name__ == "__main__":
 			"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt / 3600))
 		fileName = "Machine-" + str(rank)
 
-		e = Experiment(fileName_=fileName, folderName_="CMA", noNodes_ = 5, simTime_=simTime, maxIter_=trainingIt, optMethod_="CMA")
+		e = Experiment(fileName_=fileName, noNodes_=6, folderName_="CMA", simTime_=simTime, maxIter_=trainingIt, optMethod_="CMA")
 		e.run()
