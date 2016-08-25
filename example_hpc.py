@@ -168,5 +168,5 @@ if __name__ == "__main__":
 			"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt / 3600))
 		fileName = "Machine-" + str(rank)
 
-		e = Experiment(fileName_=fileName, folderName_="CMA", simTime_=simTime, maxIter_=trainingIt, optMethod_="CMA")
+		e = Experiment(fileName_=fileName, folderName_="CMA", noNodes_ = 5, simTime_=simTime, maxIter_=trainingIt, optMethod_="CMA")
 		e.run()

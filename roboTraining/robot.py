@@ -475,6 +475,25 @@ class SpringMorphology(Morphology):
 
 		assert timeStep <= SpringMorphology.maxTimeStep( maximumSpringConstant, minimumWeight )
 
+class MouseMorphology(SpringMorphology):
+	def generateShape(self, noNodes, initialHeight):
+		## initialise nodes ##
+		# compute initial x and y values (coordinates of the nodes)
+		nodeIds = np.arange(noNodes)
+		xPos = np.arange(noNodes) - noNodes/2. + .5
+		yPos = np.mod(nodeIds+1, 2) * (1-np.abs(2*xPos/noNodes)**2) * self.initialHeight
+		initialPos = SpaceList(xPos, yPos)
+		return initialPos
+
+	def generateConnections(self, noNodes):
+		## initialise connections ##
+		# generate the connection matrix
+		connections = np.zeros((noNodes, noNodes))
+		for i in xrange(self.noNeighbours):
+			connections[np.arange(1+i,noNodes), np.arange(0,noNodes-1-i)] = 1  # connect adjacent nodes
+		connections += connections.T
+		return connections
+
 class SpringMorphology3D(SpringMorphology):
 	param = ["square"] + SpringMorphology.param
 	def __init__(self, noNodes = 20, mass = 1, spring = 100, damping = 1, initialHeight = 4, noNeighbours = 3, square = False,

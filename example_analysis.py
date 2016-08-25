@@ -5,7 +5,7 @@ from roboTraining.analysis import *
 if __name__ == "__main__":
 
 	# Create Analysis object and load results folder
-	an = Analysis(folder="simtime_5000_it_GA_fail/SimTime")#pareto_CMA_25s_5000it/")#test_uniformite_25_s")#convergence_test/data/")#
+	an = Analysis(root=".",folder="CMA/")#pareto_CMA_25s_5000it/")#test_uniformite_25_s")#convergence_test/data/")#
 	an.load()
 
 	# General plots

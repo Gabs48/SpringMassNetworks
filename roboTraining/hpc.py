@@ -47,7 +47,7 @@ class Experiment(object):
 
 		# Init environment
 		env = HardEnvironment()
-		morph = SpringMorphology(mass=self.mass, noNodes=self.noNodes, spring=self.spring, \
+		morph = MouseMorphology(mass=self.mass, noNodes=self.noNodes, spring=self.spring, \
 			noNeighbours=self.noNeighbours, environment=env)
 		control = SineControl(morph, omega=self.omega)
 		robot = Robot(morph, control)
