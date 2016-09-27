@@ -9,7 +9,6 @@ Nodes
 KM
 PowerEff
 Noise
-!*msdn.png
 *.png
 *.eps
 *.mp4
@@ -22,3 +21,7 @@ Noise
 
 # Ignore filesystem browser files
 .directory
+
+# Except
+!msdn.png
+!*/
