@@ -191,3 +191,4 @@ if __name__ == "__main__":
 
 		e = Experiment(fileName_=fileName, noNodes_=6, folderName_="CMA", simTime_=simTime, maxIter_=trainingIt, optMethod_="CMA")
 		e.run()
+
