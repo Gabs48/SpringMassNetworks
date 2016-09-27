@@ -475,6 +475,49 @@ class SpringMorphology(Morphology):
 
 		assert timeStep <= SpringMorphology.maxTimeStep( maximumSpringConstant, minimumWeight )
 
+class MouseMorphology(SpringMorphology):
+
+	def generateShape(self, noNodes, initialHeight):
+		## initialise nodes ##
+		# compute initial x and y values (coordinates of the nodes)
+		nodeIds = np.arange(6)
+		xPos = np.arange(noNodes) - noNodes/2. + .5
+		yPos = np.mod(nodeIds+1, 2) * (1-np.abs(2*xPos/noNodes)**2) * self.initialHeight
+		xPos[0] = -2.5;
+		xPos[1] = -0.5;
+		xPos[2] = -1.5;
+		xPos[3] = 0.5;
+		xPos[4] = 1.5;
+		xPos[5] = 2.5;
+		yPos[0] = 0;
+		yPos[1] = 0;
+		yPos[2] = 1;
+		yPos[3] = 0;
+		yPos[4] = 2;
+		yPos[5] = 0;
+		initialPos = SpaceList(xPos, yPos)
+		print "###############", initialPos
+		return initialPos
+
+	def generateConnections(self, noNodes):
+		## initialise connections ##
+		# generate the connection matrix
+		connections = np.zeros((noNodes, noNodes))
+		#for i in xrange(self.noNeighbours):
+		#	connections[np.arange(1+i,noNodes), np.arange(0,noNodes-1-i)] = 1  # connect adjacent nodes
+		#connections += connections.T
+		connections[0,2]=1
+		connections[1,2]=1
+		connections[2,4]=1
+		connections[3,4]=1
+		connections[4,5]=1
+		connections[2,0]=1
+		connections[2,1]=1
+		connections[4,2]=1
+		connections[4,3]=1
+		connections[5,4]=1
+		return connections
+
 class SpringMorphology3D(SpringMorphology):
 	param = ["square"] + SpringMorphology.param
 	def __init__(self, noNodes = 20, mass = 1, spring = 100, damping = 1, initialHeight = 4, noNeighbours = 3, square = False,
@@ -573,24 +616,6 @@ class BalMorphology(SpringMorphology):
 		initialPos = SpaceList(xPos, yPos)
 		return initialPos
 
-	def generateConnections(self, noNodes):
-		## initialise connections ##
-		# generate the connection matrix
-		connections = np.zeros((noNodes, noNodes))
-		self.stressed = np.zeros((noNodes, noNodes))
-		
-		longRange = 5;
-		for i in xrange(self.noNeighbours-longRange): 
-			startNo = np.mod(np.arange(1 + i,noNodes + i + 1), noNodes)
-			endNo = np.mod(np.arange(0, noNodes), noNodes)
-			connections[startNo, endNo] = 1  # connect adjacent nodes of outer circle
-		for i in xrange(longRange): 
-			startNo = np.mod(np.arange(noNodes) + (noNodes - longRange) / 2 + i, noNodes)
-			endNo = np.arange(noNodes)
-			connections[startNo, endNo] = 1  # connect adjacent nodes of outer circle
-		self.stressed[startNo, endNo] = 1
-		print connections
-		return connections
 
 	def getRestLength(self, initialPos, connections):
 		difx, dify = initialPos.getDifference()
