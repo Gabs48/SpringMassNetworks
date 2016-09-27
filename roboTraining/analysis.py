@@ -633,7 +633,7 @@ class Analysis(object):
 		# Construct robot from config file
 		configFilename = scoreFilename.replace("score", "config")
 		env = HardEnvironment()
-		morph = MouseMorphology(noNodes=self.n_nodes[index1] , spring=self.k[index1], noNeighbours=3, environment=env)
+		morph = SpringMorphology(noNodes=self.n_nodes[index1] , spring=self.k[index1], noNeighbours=3, environment=env)
 		control = ClosedLoopSineControl(morph)
 		control.loadCSV(configFilename)
 		robot = Robot(morph, control)

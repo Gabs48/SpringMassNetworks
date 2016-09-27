@@ -47,7 +47,7 @@ class Experiment(object):
 
 		# Init environment
 		env = HardEnvironment()
-		morph = MouseMorphology(mass=self.mass, noNodes=self.noNodes, spring=self.spring, \
+		morph = SpringMorphology(mass=self.mass, noNodes=self.noNodes, spring=self.spring, \
 			noNeighbours=self.noNeighbours, environment=env)
 		control = SineControl(morph, omega=self.omega)
 		robot = Robot(morph, control)
@@ -163,7 +163,6 @@ def createRefPowerParetoVal():
 	power =  np.linspace(0, 10000, num=10).tolist()
 
 	return power
-<<<<<<< HEAD:roboTraining/experiment.py
 
 def createNoiseVal():
 	"""Return a 2D list of reference distance and power"""
@@ -171,5 +170,3 @@ def createNoiseVal():
 	noise =  np.logspace(-8, 0, num=10)
 
 	return noise
-=======
->>>>>>> b529547b45b5e9db9b2b26e69da5508a61ebf8e4:roboTraining/hpc.py
