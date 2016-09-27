@@ -1,3 +1,5 @@
+from collections import deque
+import itertools
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -5,9 +7,9 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import os
-import itertools
 from robot import Robot
 from utils import SpaceList, Plot, LinearMap, NeuralNetwork, num2str, mkdir_p, connections2Array, array2Connections
+import sys
 
 class Plotter(object):
 	""" create instance with plotting properties 
@@ -409,11 +411,12 @@ class TrainingSimulation(VerletSimulation):
 		self.trainLength = int(np.floor(self.trainPhase * self.signLength))
 		self.runLength = self.simulEnv.simulationLength - self.trainLength - self.transLength
 
+		self.inputs = []
 		self.yTraining = self.create_y_training()
 		self.xTraining = np.array([])
 		self.yTrained = np.array([])
 
-		self.N = self.robot.getState().pos.getArray().shape[1]
+		self.N = self.robot.getState().pos.getArray().shape[1] + self.robot.getState().speed.getArray().shape[1]
 		if len(self.yTraining[self.iterationNumber].shape) != 0:
 			self.O = self.yTraining[self.iterationNumber].shape[0]
 		else:
@@ -455,7 +458,7 @@ class TrainingSimulation(VerletSimulation):
 	def trainStep(self):
 		""" Add training data for a given step """
 
-		posArray = self.robot.getState().pos.getArray()
+		posArray = self.robot.getState().pos.getArray().T
 
 		if self.xTraining.size == 0:
 			self.xTraining = posArray
@@ -473,7 +476,7 @@ class TrainingSimulation(VerletSimulation):
 		w, res, rank, singVal = np.linalg.lstsq(x, y)
 		np.set_printoptions(threshold=np.inf)
 		self.weightMatrix = w
-		self.yTrained = np.dot(x, w)
+		self.yTrained = np.transpose(np.dot(w.T, x))
 
 		# Print debug
 		print " -- Network training by linear regression performed. Sum of residues = {:.4f}".format(res[0]) + \
@@ -487,9 +490,23 @@ class TrainingSimulation(VerletSimulation):
 	def runStep(self):
 		""" Run the neuron for a given step """
 
-		# Get position and compute new signal estimation
-		posArray = np.hstack((self.robot.getState().speed.getArray(), self.robot.getState().pos.getArray()))
-		y_est = np.asarray(np.dot(posArray, self.weightMatrix))
+		# Get input state vector
+		if hasattr(self, 'hist'):
+			x_it = self.robot.getState().pos.getArray().T
+			self.inputs.pop(0)
+			self.inputs.append(x_it)
+			posArray = np.mat(self.inputs[0])
+			for i in range(self.hist-1):
+				if i < 3:
+					posArray = np.vstack((posArray, self.inputs[i]))
+				else:
+					if i%4 == 0:
+						posArray = np.vstack((posArray, self.inputs[i]))
+		else:
+			posArray = np.vstack((self.robot.getState().speed.getArray(), self.robot.getState().pos.getArray()))
+
+		# Compute new signal estimation
+		y_est = np.asarray(np.transpose(np.dot(self.weightMatrix.T, posArray)))
 
 		# Store estimation in vector
 		if self.yTrained.size == 0:
@@ -613,7 +630,7 @@ class TrainingSimulation(VerletSimulation):
 class ForceTrainingSimulation(TrainingSimulation):
 	""" Extend the TrainingSimulation class to use FORCE online learning """
 
-	def __init__(self, simulEnv, robot, transPhase=0.1, trainPhase=0.5, trainingPlot=True, \
+	def __init__(self, simulEnv, robot, transPhase=0.2, trainPhase=0.6, trainingPlot=True, \
 		alpha=1, beta=0.1, openPhase=0.1, signTime=None, wDistPlot=True, outputFilename="sinusoid", \
 		outputFolder="RC", printPhase=True):
 		""" Init class: phases are reparted like this
@@ -639,43 +656,62 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Algorithm constants
 		self.alpha = alpha
 		self.beta = beta
+		self.hist = 20
 
 		# Algorithm matrices
 		self.trainIt = 0
-		self.w = []
-		self.p = []
-		self.error = np.array([])
+		self.w = None
+		self.p = None
+		self.error = None
 		self.yTrained = np.array([])
 
 	def trainStep(self):
 		""" Add training data for a given step """
 
-		# Copy input, and output
-		#x = np.mat(self.robot.getState().pos.getArray().T)
-		x = np.mat(np.vstack((self.robot.getState().speed.getArray().T, self.robot.getState().pos.getArray().T)))
+		# Get robot current state
+		x_it =  self.robot.getState().pos.getArray().T
+
+		# If the inputs fifo hasen't been created, do it
+		if not self.inputs:
+			self.N = x_it.shape[0]
+			for i in range(self.hist):
+				self.inputs.append(np.zeros((self.N, 1)))
+
+		# Update the inputs fifo
+		self.inputs.pop(0)
+		self.inputs.append(x_it)
+		
+		# Get current learning algo inputs and supervized ouput
+		x = np.mat(self.inputs[0])
+		for i in range(self.hist-1):
+			if i < 3:
+				x = np.vstack((x, self.inputs[i]))
+			else:
+				if i%4 == 0:
+					x = np.vstack((x, self.inputs[i]))
+
 		y = np.mat(self.yTraining[self.iterationNumber])
 
-		# If first iteration, init with random wieghts
+		# If first iteration, init with random weights
 		if self.trainIt == 0:
-			self.N = x.shape[0]
-			w = np.random.rand(self.N, self.O)
-			p = np.identity(self.N) / self.alpha
+			w = np.random.rand(x.shape[0], self.O)
+			p = np.identity(x.shape[0]) / self.alpha
 			yTrained = np.asarray(w.T * x).T
 			self.yTrained = yTrained
-			self.error = y - yTrained
+			#self.error = y - yTrained
 
 		# Else update
 		else:
 
 			# Update inverse Correlation Matrix of the network states
-			p_prev = np.mat(self.p[-1])
+			p_prev = np.mat(self.p_prev)
 			den = 1 + x.T * p_prev * x
 			num = p_prev * x * x.T * p_prev
 			p = p_prev - num / den
 
 			# Update weight matrix
-			e_prev = np.mat(self.error[-1,:])
-			w_prev = np.mat(self.w[-1])
+			#e_prev = np.mat(self.error[-1,:])
+			w_prev = np.mat(self.w_prev)
 			e_p = w_prev.T * x - y.T
 			w = w_prev - p * x * e_p.T
 			#print "Error: " + str(np.mean(e_p))
@@ -685,13 +721,13 @@ class ForceTrainingSimulation(TrainingSimulation):
 			self.yTrained = np.vstack((self.yTrained, np.asarray(yTrained)))
 
 			# Update error
-			error = y - yTrained
-			self.error = np.vstack((self.error, error))
+			#error = y - yTrained
+			#self.error = np.vstack((self.error, error))
 
 		# Update iteration
 		self.trainIt += 1
-		self.w.append(w)
-		self.p.append(p)
+		self.w_prev = w
+		self.p_prev = p
 
 		# start Closed-Loop mode
 		if self.trainIt == self.openLength:
@@ -741,7 +777,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 	def train(self):
 		""" Nothing to do here as FORCE is an online method """
 
-		self.weightMatrix = self.w[-1]
+		self.weightMatrix = self.w_prev
 		if self.wDistPlot:
 			self.plotW()
 

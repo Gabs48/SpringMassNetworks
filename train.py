@@ -5,8 +5,8 @@ from roboTraining.hpc import *
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
 
-	trainingIt = 20000
-	simTime = 30
+	trainingIt = 5000
+	simTime = 10
 
 	# Get MPI info
 	comm = MPI.COMM_WORLD
@@ -161,6 +161,27 @@ if __name__ == "__main__":
 					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereffratio")
 					e.run()
 
+		#  Different reference for energy and distance scores
+		if sys.argv[1].lower() == "noise":
+
+			# Get arg list and estimate iteration number and time
+			arg_list = createRefPowerParetoVal()
+			fileName = "Machine-" + str(rank)
+			n_iteration = int(math.ceil(len(arg_list)/float(size)))
+			print(" == Running " +  str(len(arg_list)) + " Noisy experiments on " + str(size) + \
+				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
+				"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
+
+			# Simulate multiple time if the number of cores does not correspond to number of points
+			for i in range(n_iteration):
+				index = i * size + rank
+				if index < len(arg_list):
+					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
+						" -- Experiment " + str(index+1) + " with P ref=" + str(arg_list[index]))
+					e = Experiment(fileName_=fileName, folderName_="Noise", refPower_=arg_list[index],\
+					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereff")
+					e.run()
+
 	else:
 		# Pool of CMA otpimization with the same argument list
 		print(" == Running " +  str(size) + " experiments on " + str(size) + \
@@ -168,5 +189,5 @@ if __name__ == "__main__":
 			"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt / 3600))
 		fileName = "Machine-" + str(rank)
 
-		e = Experiment(fileName_=fileName, folderName_="CMA", simTime_=simTime, maxIter_=trainingIt, optMethod_="CMA")
+		e = Experiment(fileName_=fileName, noNodes_=5, folderName_="CMA", simTime_=simTime, maxIter_=trainingIt, optMethod_="CMA")
 		e.run()

@@ -113,6 +113,7 @@ class TrainingScheme(object):
 		return robot.matrix2robot(self.names,matrix,True)
 
 class PartialTrainingScheme(TrainingScheme):
+
 	def __init__(self, trainNodes = 0, noConnections = 0, robot = None, fraction = -1):
 		if robot != None:
 			noConnections = robot.getNoConnections()
@@ -154,6 +155,7 @@ class PartialTrainingScheme(TrainingScheme):
 		return fullMatrix
 
 	def createPartialMatrix(self, matrix):
+
 		return matrix[:, self.trainNodes]
 
 class Training(object):
@@ -211,6 +213,7 @@ class Training(object):
 
 	def evaluateParam(self, param):
 		""" calculate the performance index of a parameter set"""
+		
 		self.trainscheme.normalizedMatrix2robot(param, self.robot)
 		# FIX NOISE
 		if self.simulEnv.verlet:
@@ -272,6 +275,7 @@ class RandomTraining(Training):
 
 	def __init__( self, trainscheme , robot, simulEnv, saver = None, showIntermediateResults = True, saveAllstates = True, 
 					maximization = True, noInstances= 100):
+
 		self.noInstances = noInstances
 		super(RandomTraining,self).__init__( trainscheme , robot, simulEnv, saver, showIntermediateResults, saveAllstates, maximization)
 

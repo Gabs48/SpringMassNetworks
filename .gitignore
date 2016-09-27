@@ -2,7 +2,14 @@
 *.pyc
 
 # Ignore Data folder and files
-Data
+CMA
+Pareto
+SimTime
+Nodes
+KM
+PowerEff
+Noise
+!*msdn.png
 *.png
 *.eps
 *.mp4
