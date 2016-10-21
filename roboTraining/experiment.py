@@ -137,7 +137,7 @@ def createKMVal():
 def createNodesVal():
 	"""Return a list of nodes number"""
 
-	nodes = range(3, 31)
+	nodes = range(3, 41)
 	liste = []
 
 	for n in nodes:
