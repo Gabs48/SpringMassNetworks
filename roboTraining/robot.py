@@ -520,7 +520,7 @@ class SpringMorphology3D(SpringMorphology):
 			endNo = np.arange(noNodes)
 			connections[startNo, endNo] = 1  # connect adjacent nodes of outer circle
 		self.stressed[startNo, endNo] = 1
-		print connections
+		# print connections
 		return connections
 
 	def getRestLength(self, initialPos, connections):
@@ -574,11 +574,12 @@ class NonLinearMorphology(SpringMorphology):
 
 class BalMorphology(SpringMorphology): 
 	" not fully stable"
+
 	def __init__(self, noNodes = 20, mass = 1, spring = 100, damping = 1, initialHeight = 4, noNeighbours = 3,
 				environment = HardEnvironment()):
-		super(BalMorphology, self).__init__(noNodes = noNodes, mass = mass, spring = spring, damping = damping, initialHeight = initialHeight
-												,  noNeighbours = noNeighbours, environment = environment)
 
+		super(BalMorphology, self).__init__(noNodes = noNodes, mass = mass, spring = spring, damping = damping,
+			initialHeight = initialHeight,noNeighbours = noNeighbours, environment = environment)
 
 	def generateShape(self, noNodes, initialHeight):
 		## initialise nodes ##
@@ -591,7 +592,6 @@ class BalMorphology(SpringMorphology):
 
 		initialPos = SpaceList(xPos, yPos)
 		return initialPos
-
 
 	def getRestLength(self, initialPos, connections):
 		difx, dify = initialPos.getDifference()
@@ -784,7 +784,7 @@ class SineControl(TimeControl):
 				speed of modulation
 	""" 
 	uniform2pi = lambda shape: np.random.uniform(0, 2*np.pi, shape)
-	param = ["amplitude", "phase", "omega"]
+	param = ["amplitude", "phase", "omega", "base_omega"]
 
 	def __init__(self, morph, amplitude=0.2, phase=uniform2pi, omega=2*np.pi):
 		""" --- Initialise a Control Structure for a Robot based on sines ---
@@ -801,10 +801,10 @@ class SineControl(TimeControl):
 		""" 
 
 		## initialise modulation paramters ##
-		# initialise amplitude
 		self.amplitude = morph.connectionParameterMatrix(amplitude)
 		self.phase = morph.connectionParameterMatrix(phase)
 		self.omega = morph.connectionParameterMatrix(omega)
+		self.base_omega = np.matrix([omega])
 
 	def loadCSV(self, fileName):
 		"""Load the controller from a config file"""
@@ -921,6 +921,7 @@ class ClosedLoopSineControl(SineControl):
 
 class GenerativeControl(Control):
 	#URGENT check for syntax and logic errors (not yet used)
+
 	def __init__(self, map, buffer, morph, delayTime, delayStep):
 		self.map = map
 		self.buffer = buffer
@@ -1023,12 +1024,33 @@ class Robot(object):
 		else:
 			raise AttributeError('The robot has no such property ('+ name + ')')
 			prop = None
-		return utils.connections2Array(prop,self.morph.connections)
+
+		# if prop.size == self.morph.noNodes ** 2:
+		# 	# Links property
+		# 	print "Link " + str(prop.size)
+		# 	print utils.connections2Array(prop,self.morph.connections)
+		# 	return utils.connections2Array(prop,self.morph.connections)
+
+		# if prop.size == self.morph.noNodes:
+		# 	# Node property
+		# 	print 'Node '
+		# 	return
+
+		# else:
+		# 	# Homogeneous property
+		# 	return
+
+		return		
 
 	def setProperty(self,name,array):
 		""" set a property with the required name by an array
 			(works only for properaties defined on internode connections"""
+		
+		array_size = array.size
+		#print array_size
 		prop = utils.array2Connections(array,self.morph.connections)
+
+		#print array.shape
 		if(hasattr(self.morph, name)):
 			setattr(self.morph, name, prop)
 		elif (hasattr(self.control ,name)):

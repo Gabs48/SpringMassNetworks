@@ -1,6 +1,6 @@
 #! /usr/bin/env python2
 
-from roboTraining.hpc import *
+from roboTraining.experiment import *
 
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
@@ -77,23 +77,30 @@ if __name__ == "__main__":
 		#  Different nodes number
 		if sys.argv[1].lower() == "nodes":
 
-			# Get arg list and estimate iteration number and time
+			# Get arg list and estimate training iteration number
 			arg_list = createNodesVal()
 			fileName = "Machine-" + str(rank)
 			n_iteration = int(math.ceil(len(arg_list)/float(size)))
+			time = 0
+			for i in range(n_iteration):
+				index = i * size + rank
+				if index < len(arg_list):
+					print arg_list[index][0]
+					time += float(simTime) / 20 * (1100 * arg_list[index][0] + 3000)  * n_iteration / 3600
 			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
-				"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
+				"{:.2f} hours == \n".format(time))
 
 			# Simulate multiple time if the number of cores does not correspond to number of points
 			for i in range(n_iteration):
 				index = i * size + rank
 				if index < len(arg_list):
+					train_it_index = (1100 * arg_list[index][0] + 3000)
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 						" -- Experiment " + str(index+1) + " with number of nodes=" + \
-						str(arg_list[index][0]))
+						str(arg_list[index][0]) + "and " + str(train_it_index) + " iterations")
 					e = Experiment(fileName_=fileName, folderName_="Nodes", noNodes_=arg_list[index][0],\
-					simTime_=simTime, maxIter_=trainingIt)
+					simTime_=simTime, maxIter_=train_it_index, perfMetr_="dist")
 					e.run()
 
 		#  Different couple of spring constant and mass

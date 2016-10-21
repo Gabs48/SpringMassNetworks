@@ -51,8 +51,19 @@ class TrainingScheme(object):
 		self.trainableParams.append(trainVariable)
 		self.names.append(trainVariable.name)
 
+	def addHomogeneousTrainVariable(self,trainVariable):
+		""" add a variable to be trained homogeneously to the TrainingScheme. By homogeneously, we mean that 
+		the variable remains identiqual for each nodes or links of the robot."""
+		self.HomogeneousTrainableParams.append(trainVariable)
+		self.names.append("homogeneouse_" + trainVariable.name)
+
 	def createTrainVariable(self,name,min,max):
 		""" create and add a variable that should be trained to the TraingScheme"""
+		self.addTrainVariable(TrainingVariable(name,min,max))
+
+	def createHomogeneousTrainVariable(self,name,min,max):
+		""" create and add a homogeneous variable that should be trained to the TraingScheme. By homogeneous, 
+		we mean that the variable remains identiqual for each nodes or links of the robot."""
 		self.addTrainVariable(TrainingVariable(name,min,max))
 
 	def robot2normalizedMatrix(self,robot):
@@ -66,6 +77,7 @@ class TrainingScheme(object):
 		- matrix : matrix
 			normalized matrix of which the headers are given by the names attribute
 		"""
+
 		matrix = robot.robot2matrix(self.names);
 		for i in range(len(self.trainableParams)):
 			matrix[i,:]=self.trainableParams[i].normalize(matrix[i,:])
