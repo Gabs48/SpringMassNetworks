@@ -34,6 +34,8 @@ class Analysis(object):
 		self.k = []
 		self.m = []
 		self.n_nodes = []
+		self.n_conns = []
+		self.n_springs = []
 		self.ps = []
 
 		self.y = []
@@ -121,19 +123,27 @@ class Analysis(object):
 				self.sl.append(int(tab[sl_ind[0]][sl_ind[1] + 1]))
 				self.sim_time.append(float(tab[ts_ind[0]][ts_ind[1] + 1])*float(tab[sl_ind[0]][sl_ind[1] + 1]))
 
+				# Find node and connection numbers
+				nn_ind = findIndex(tab, "noNodes:")
+				n_nodes = int(tab[nn_ind[0]][nn_ind[1] + 1])
+				self.n_nodes.append(n_nodes)
+				nc_ind = findIndex(tab, "noNeighbours:")
+				n_conns = int(tab[nc_ind[0]][nc_ind[1] + 1])
+				self.n_conns.append(n_conns)
+				self.n_springs.append((n_nodes - 1 - (n_conns - 1) / 2) * n_conns)
+
 				# Find population size
 				if self.opt_type[-1] == "CMA":
 					ps_ind = findIndex(tab, "popSize:")
-					self.ps.append(int(4 + math.floor(3 * math.log(len(vals) * 54))))
+					self.ps.append(int(4 + math.floor(3 * math.log(len(vals) * self.n_springs[-1]))))
 				elif self.opt_type[-1] == "GENETIC":
 					ps_ind = findIndex(tab, "populationSize:")
 					self.ps.append(float(tab[ps_ind[0]][ps_ind[1] + 1]))
 				else:
 					self.ps.append(1)
-
-				# Find Nodes number
-				nn_ind = findIndex(tab, "noNodes:")
-				self.n_nodes.append(int(tab[nn_ind[0]][nn_ind[1] + 1]))
+				# print 'Name: ' + str(f) + ' and conns ' + str(self.n_conns[-1]) + \
+				# ' and nodes ' + str(self.n_nodes[-1])  + " and springs " + str(self.n_springs[-1]) +  \
+				# ' and pop size: ' + str(self.ps[-1])
 
 				# Find mass
 				m_ind = findIndex(tab, "mass:")
