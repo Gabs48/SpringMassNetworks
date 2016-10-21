@@ -58,7 +58,7 @@ if __name__ == "__main__":
 			for i in range(n_iteration):
 				index = i * size + rank
 				if index < len(arg_list):
-					time += float(arg_list[index][0]) / 20 * trainingIt * n_iteration / 3600
+					time += float(arg_list[index][0]) / 20 * trainingIt / 3600
 			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
 				"{:.2f} hours == \n".format(time) )
@@ -85,8 +85,7 @@ if __name__ == "__main__":
 			for i in range(n_iteration):
 				index = i * size + rank
 				if index < len(arg_list):
-					print arg_list[index][0]
-					time += float(simTime) / 20 * (1100 * arg_list[index][0] + 3000)  * n_iteration / 3600
+					time += float(simTime) / 20 * (1100 * arg_list[index][0] + 3000) / 3600
 			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
 				"{:.2f} hours == \n".format(time))
@@ -98,7 +97,7 @@ if __name__ == "__main__":
 					train_it_index = (1100 * arg_list[index][0] + 3000)
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 						" -- Experiment " + str(index+1) + " with number of nodes=" + \
-						str(arg_list[index][0]) + "and " + str(train_it_index) + " iterations")
+						str(arg_list[index][0]) + " and " + str(train_it_index) + " iterations")
 					e = Experiment(fileName_=fileName, folderName_="Nodes", noNodes_=arg_list[index][0],\
 					simTime_=simTime, maxIter_=train_it_index, perfMetr_="dist")
 					e.run()
