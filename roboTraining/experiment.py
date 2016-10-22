@@ -18,8 +18,8 @@ class Experiment(object):
 	"""Class to perform standard experiments"""
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
-		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=5000, omega_=2*np.pi*5, \
-		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=5000, refDist_=100):
+		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=5000, omega_=2*np.pi*2, \
+		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=3600, refDist_=100):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
@@ -58,11 +58,11 @@ class Experiment(object):
 
 		trainscheme = TrainingScheme()
 		#trainscheme.createTrainVariable("mass", 0, 1)
-		trainscheme.createTrainVariable("omega", 0, self.omega)
+		#trainscheme.createTrainVariable("omega", 0, self.omega)
 		#trainscheme.createTrainVariable("base_omega", 0, self.omega)
 		trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
 		#trainscheme.createTrainVariable("restLength", np.min(morph.restLength[morph.restLength>0]), np.max(morph.restLength))
-		#trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
+		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
 		trainscheme.createTrainVariable("spring", 0, 200)
 
 		saver = Save(None, self.fileName, self.folderName)
