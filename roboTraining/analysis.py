@@ -23,6 +23,8 @@ class Analysis(object):
 		self.path = os.path.join(root, folder)
 
 		self.scores = []
+		self.dists = []
+		self.pows = []
 		self.filenames = []
 		self.parameters = []
 		self.trainable = []
@@ -172,6 +174,8 @@ class Analysis(object):
 				# Compute average
 				if window_init == None:
 					window = len(self.x[i]) / 40
+					if window == 0:
+						window = 1
 				y_av = np.convolve(np.array(y), np.ones((window,))/window, mode='valid')
 				if window%2 == 0:
 					x_av = self.x[i][window/2:len(self.x[i])-window/2+1]
@@ -293,10 +297,17 @@ class Analysis(object):
 				if name.find("score") != -1 and os.path.splitext(name)[1] == ".csv":
 					with open(os.path.join(path, name), 'r') as csvfile:
 						tab = csv.reader(csvfile, delimiter=';', quotechar='|')
+						self.filenames.append(os.path.join(path, name))
+						i = 0
 						for row in tab:
-							self.scores.append(row)
-							self.filenames.append(os.path.join(path, name))
-		
+							if i == 0:
+								self.scores.append(row)
+							elif i == 1:
+								self.pows.append(row)
+							else:
+								self.dists.append(row)
+							i += 1
+
 		# Fill score list and iteration range
 		for y in self.scores:
 			self.y.append(list(map(float, y)))
@@ -679,10 +690,10 @@ class Analysis(object):
 				simul = NoisyVerletSimulation(simulEnv, robot, noise=simNoise)
 			else:
 				simul = VerletSimulation(simulEnv, robot)
-		score = simul.runSimulation();
+		[score, power, distance] = simul.runSimulation();
 
 		print(" -- Simulation terminated with score {:.4f}".format(score) + \
-			". Distance: " + str(simul.getDistance()) + " and Power: " + str(robot.getPower()) + " -- ")
+			". Distance: " + str(distance) + " and Power: " + str(power) + " -- ")
 		if movie:
 			print(" -- Video saved in file " + simName + ".mp4 --")
 

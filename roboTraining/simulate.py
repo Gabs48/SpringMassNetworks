@@ -236,13 +236,13 @@ class Simulation(object):
 		distance = self.getDistance()
 		speed = distance / (self.iterationNumber * self.simulEnv.timeStep)
 		if self.simulEnv.perfMetr == 'dist':
-			return distance
+			return [distance, power, distance]
 		elif self.simulEnv.perfMetr == 'powereff':
 			power = self.robot.getPower()
 			refPower =self.simulEnv.refPower
 			refDist = self.simulEnv.refDist
 			C = np.arctanh(1.0 / np.sqrt(2))
-			return (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
+			return [(np.tanh(C * refPower / power) * np.tanh(C * distance / refDist)), power, distance]
 		elif self.simulEnv.perfMetr == 'powereffratio':
 			power = self.robot.getPower()
 			refPower = self.simulEnv.refPower
@@ -250,7 +250,7 @@ class Simulation(object):
 				score = float(distance) / power
 			else:
 				score = float(distance) / refPower
-			return score
+			return [score, power, distance]
 		else:
 			raise NotImplementedError ('the requested performance metric has not been implemented')
 

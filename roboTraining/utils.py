@@ -24,13 +24,17 @@ def findIndex(tab, name):
 
 	index = [-1, -1]
 	i = 0;
+	find = False
 	for row in tab:
 		j = 0;
 		for cell in row:
 			if cell.find(name) != -1:
 				index = [i, j]
+				find = True
 				break
 			j += 1
+		if find:
+			break;
 		i += 1
 
 	return index
@@ -183,6 +187,7 @@ class Save(object):
 		self.timestamp = timestamp
 		self.floatFormat = floatFormat
 		self.inProgress = False
+		self.transpose = False
 
 	def generateName(self, type = "", ext = "", name = None):
 		if name == None:
@@ -201,18 +206,19 @@ class Save(object):
 
 		return self.folder + name + type + ext
 
-	def save(self, data = None, name = None, close = True):
+	def save(self, data = None, name = None, close = True, transpose=False):
 		""" write data and object to CSV file, input can be object, array like, string, dictionairy"""
+
 		if isinstance(data, dict):
 			for key in data:
 				if key =="parameter":
 					Save.toCSV(data[key], self.generateName(key), floatFormat="0.10f")
 				else:
-					Save.toCSV(data[key], self.generateName(key), self.floatFormat)
+					Save.toCSV(data[key], self.generateName(key), self.floatFormat, transpose=transpose)
 		elif not data is None:
-			Save.toCSV(data, self.generateName(), self.floatFormat)
+			Save.toCSV(data, self.generateName(), self.floatFormat, transpose=transpose)
 
-		Save.toCSV(self.object, self.generateName(Save.configname) , self.floatFormat)
+		Save.toCSV(self.object, self.generateName(Save.configname), self.floatFormat, transpose=transpose)
 		if close:
 			self.close()
 
@@ -220,10 +226,12 @@ class Save(object):
 		self.inProgress = False;
 
 	@staticmethod
-	def toCSVstring(input , level = 0, floatFormat = '.5f'):
+	def toCSVstring(input , level = 0, floatFormat = '.5f', transpose=False):
 		""" convert an object, array of objects, matrix, vector, ... into a CSV-style string"""
 		beginLine = "\n" + "; " * level
 		string = beginLine
+		if transpose:
+			string = ""
 		if hasattr(input, "param"):
 			string += (beginLine).join([attribute + (': ; ') + Save.toCSVstring( getattr(input, attribute),level+1, floatFormat) for attribute in input.param])
 		else: 
@@ -231,7 +239,10 @@ class Save(object):
 			if input.ndim == 3:
 				string += ("\n"+beginLine).join([Save.toCSVstring(num, 0, floatFormat) for num in input])
 			elif input.ndim == 2:
-				string += (beginLine).join([Save.toCSVstring(num, 0, floatFormat) for num in input])
+				if not transpose:
+					string += (beginLine).join([Save.toCSVstring(num, 0, floatFormat) for num in input])
+				else:
+					string += (beginLine).join([Save.toCSVstring(num, 0, floatFormat) for num in input.T])
 			elif input.ndim == 1:
 				if isinstance(input[0], dict):
 					for kwarg in input:
@@ -250,9 +261,9 @@ class Save(object):
 		return string
 
 	@staticmethod
-	def toCSV( content, fileName, floatFormat = '.5f'):
+	def toCSV( content, fileName, floatFormat = '.5f', transpose=False):
 		with open(fileName+".csv", "w") as csv_file:
-			csv_file.write(Save.toCSVstring(content, 0,floatFormat))
+			csv_file.write(Save.toCSVstring(content, 0,floatFormat, transpose=transpose))
 
 class SpaceList(object):
 	""" class which allows easy bundeling of x,y and eventualy z positions

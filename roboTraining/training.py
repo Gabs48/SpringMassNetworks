@@ -200,9 +200,9 @@ class Training(object):
 	def addResult(self,parameterslist, score):
 		""" for each simulation append relevant data (scores, parameters) to lists"""
 		# result optimal for either maximization or minimization
-		if self.maximization == (score > self.optimalscore):
+		if self.maximization == (score[0] > self.optimalscore):
 			self.bestParameters = parameterslist
-			self.optimalscore = score
+			self.optimalscore = score[0]
 		self.scoreHistory.append(score)
 		
 		if self.keepIntermediateParameters:
@@ -215,7 +215,7 @@ class Training(object):
 			size = comm.Get_size()
 			machine = platform.node()
 			print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + " -- iteration " + \
-				num2str(len(self.scoreHistory)) + "\t has score \t" + num2str(score) )
+				num2str(len(self.scoreHistory)) + "\t has score \t" + num2str(score[0]) )
 
 	def addResults(self, ScoreData):
 		""" add list of results """
@@ -233,7 +233,7 @@ class Training(object):
 		else:
 			score = Simulation(self.simulEnv, self.robot).runSimulation()
 		self.addResult(param, score)
-		return score
+		return score[0]
 	
 	def save(self, name = None, savePlot = True): 
 		""" save the training with all relevant data and plots to different files"""
@@ -246,7 +246,7 @@ class Training(object):
 			# allow childclasses to add extra data
 			self.addData(data)
 
-			self.saver.save(data, name, close = False)
+			self.saver.save(data, name, close = False, transpose=True)
 			if savePlot:
 				self.plot(show = False)
 				plt.savefig(self.saver.generateName('plot','.eps'), format = 'eps', dpi = 1200)
