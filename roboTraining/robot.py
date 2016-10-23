@@ -1027,18 +1027,18 @@ class Robot(object):
 
 		if prop.size == self.morph.noNodes ** 2:
 			# Links property
-			print "Link " + str(prop.size)
-			print utils.connections2Array(prop,self.morph.connections)
+			#print "Link " + str(prop.size)
+			#print utils.connections2Array(prop,self.morph.connections)
 			return utils.connections2Array(prop,self.morph.connections)
 
 		if prop.size == self.morph.noNodes:
 			# Node property
-			print 'Node '
+			#print 'Node '
 			return
 
 		else:
 			# Homogeneous property
-			print "Homogeneous" + str(prop)
+			#print "Homogeneous" + str(prop)
 			return
 
 	def setProperty(self,name,array):
