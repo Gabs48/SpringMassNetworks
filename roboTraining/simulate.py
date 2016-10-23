@@ -238,7 +238,7 @@ class Simulation(object):
 		speed = distance / (self.iterationNumber * self.simulEnv.timeStep)
 		power = self.robot.getPower()
 		refPower =self.simulEnv.refPower
-			refDist = self.simulEnv.refDist
+		refDist = self.simulEnv.refDist
 		if self.simulEnv.perfMetr == 'dist':
 			return [distance, power, distance]
 		elif self.simulEnv.perfMetr == 'powereff':
