@@ -1025,22 +1025,21 @@ class Robot(object):
 			raise AttributeError('The robot has no such property ('+ name + ')')
 			prop = None
 
-		# if prop.size == self.morph.noNodes ** 2:
-		# 	# Links property
-		# 	print "Link " + str(prop.size)
-		# 	print utils.connections2Array(prop,self.morph.connections)
-		# 	return utils.connections2Array(prop,self.morph.connections)
+		if prop.size == self.morph.noNodes ** 2:
+			# Links property
+			print "Link " + str(prop.size)
+			print utils.connections2Array(prop,self.morph.connections)
+			return utils.connections2Array(prop,self.morph.connections)
 
-		# if prop.size == self.morph.noNodes:
-		# 	# Node property
-		# 	print 'Node '
-		# 	return
+		if prop.size == self.morph.noNodes:
+			# Node property
+			print 'Node '
+			return
 
-		# else:
-		# 	# Homogeneous property
-		# 	return
-
-		return		
+		else:
+			# Homogeneous property
+			print "Homogeneous" + str(prop)
+			return
 
 	def setProperty(self,name,array):
 		""" set a property with the required name by an array

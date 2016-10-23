@@ -5,7 +5,7 @@ from roboTraining.experiment import *
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
 
-	trainingIt = 5000
+	trainingIt = 15000
 	simTime = 10
 
 	# Get MPI info
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 						" -- Experiment " + str(index+1) + " with number of nodes=" + \
 						str(arg_list[index][0]) + " and " + str(train_it_index) + " iterations")
 					e = Experiment(fileName_=fileName, folderName_="Nodes", noNodes_=arg_list[index][0],\
-					simTime_=simTime, maxIter_=train_it_index, perfMetr_="dist")
+					simTime_=simTime, maxIter_=train_it_index)
 					e.run()
 
 		#  Different couple of spring constant and mass
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 					e.run()
 
 		#  Different reference for energy and distance scores
-		if sys.argv[1].lower() == "powereff":
+		if sys.argv[1].lower() == "paretop":
 
 			# Get arg list and estimate iteration number and time
 			arg_list = createRefPowerParetoVal()
@@ -163,15 +163,36 @@ if __name__ == "__main__":
 				if index < len(arg_list):
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 						" -- Experiment " + str(index+1) + " with P ref=" + str(arg_list[index]))
-					e = Experiment(fileName_=fileName, folderName_="PowerEff", refPower_=arg_list[index],\
-					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereffratio")
+					e = Experiment(fileName_=fileName, folderName_="Pareto_power", refPower_=arg_list[index],\
+					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powersat")
 					e.run()
 
 		#  Different reference for energy and distance scores
-		if sys.argv[1].lower() == "noise":
+		if sys.argv[1].lower() == "paretod":
 
 			# Get arg list and estimate iteration number and time
-			arg_list = createRefPowerParetoVal()
+			arg_list = createRefDistParetoVal()
+			fileName = "Machine-" + str(rank)
+			n_iteration = int(math.ceil(len(arg_list)/float(size)))
+			print(" == Running " +  str(len(arg_list)) + " Distance pareto experiments on " + str(size) + \
+				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
+				"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
+
+			# Simulate multiple time if the number of cores does not correspond to number of points
+			for i in range(n_iteration):
+				index = i * size + rank
+				if index < len(arg_list):
+					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
+						" -- Experiment " + str(index+1) + " with P ref=" + str(arg_list[index]))
+					e = Experiment(fileName_=fileName, folderName_="Pareto_dist", refDist_=arg_list[index],\
+					simTime_=simTime, maxIter_=trainingIt, perfMetr_="distsat")
+					e.run()
+
+		#  Different reference for energy and distance scores
+		if sys.argv[1].lower() == "omega":
+
+			# Get arg list and estimate iteration number and time
+			arg_list = createOmegaVal()
 			fileName = "Machine-" + str(rank)
 			n_iteration = int(math.ceil(len(arg_list)/float(size)))
 			print(" == Running " +  str(len(arg_list)) + " Noisy experiments on " + str(size) + \
@@ -183,10 +204,11 @@ if __name__ == "__main__":
 				index = i * size + rank
 				if index < len(arg_list):
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
-						" -- Experiment " + str(index+1) + " with P ref=" + str(arg_list[index]))
-					e = Experiment(fileName_=fileName, folderName_="Noise", refPower_=arg_list[index],\
-					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereff")
+						" -- Experiment " + str(index+1) + " with omega=" + str(arg_list[index]))
+					e = Experiment(fileName_=fileName, folderName_="Omega", omega_=arg_list[index],\
+					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereff", noNodes_=3)
 					e.run()
+
 
 	else:
 		# Pool of CMA otpimization with the same argument list

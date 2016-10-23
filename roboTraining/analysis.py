@@ -740,7 +740,7 @@ class Analysis(object):
 		mkdir_p(folder)
 
 		
-		print(" -- Mass-spring Analysis of folder " + self.path + "--")
+		print(" -- Mass-spring Analysis of folder " + self.path + " --")
 
 		k = []
 		m = []
@@ -805,7 +805,7 @@ class Analysis(object):
 		ax.set_xlim([0, 0.06])
 		ax.set_ylim([0, 0.6])
 		if show: plt.show()
-		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		if save: plt.savefig(folder + filename + ".png", format='png', dpi=300)
 
 		if sensibility:
 			print "Il faut faire ca!"
@@ -920,5 +920,68 @@ class Analysis(object):
 		Plot.configurePlot(fig, ax, 'Relative Power','Relative Speed', legendLocation='lower right', size='small')
 		ax.set_xlim([5e-5, 2])
 		ax.set_ylim([1e-3, 5])
+		if show: plt.show()
+		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+
+	def freq(self, filename="reusults_freq", shhow=False, save=True):
+		"""Perform specific analysis for a omega batch"""
+
+		folder = "omega_pic/"
+		mkdir_p(folder)
+		print(" -- Omega Analysis of folder " + self.path + " --")
+
+		dist = []
+		omega = []
+		sim_time = self.sim_time[0]
+		opt_type = self.opt_type[0]
+
+		# Fill values from loaded variables
+		for i in range(len(self.y)):
+
+			duplicate = False
+			assert self.sim_time[i] == sim_time, \
+				"For a meaningfull pareto graph, ensure the simulation times are the same for all data"
+			assert self.opt_type[i] == opt_type, \
+				"For a meaningfull pareto graph, ensure the optimization algorithms are the same for all data"
+
+			# Fetch iteration omega value
+			it_omega = None
+			for it in self.trainable[i]:
+				if it["name"] == "omega":
+					it_omega = it["max"]
+			if not it_omega:
+				it_omega = self.omega[i]
+
+			# If couple omega/ampli already existsn average with previous one
+			for j, om in enumerate(omega):
+				if om == it_omega :
+					dist[j].append(self.get_best_ind(index=i)[0])
+					duplicate = True
+
+			if duplicate == False:
+				dist.append([self.get_best_ind(index=i)[0]])
+				omega.append(it_omega)
+
+		# Average points with multiple values
+		n_av = []
+		for i in range(len(dist)):
+			if  len(dist[i]) > 1:
+				n_av.append(len(dist[i]))
+			dist[i] = sum(dist[i]) / len(dist[i])
+		if len(n_av) != 0:
+			print(" -- Averaging " + str(len(n_av)) + " graph points with on average " + \
+				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
+
+		# Sort lists
+		omega, dist = (list(t) for t in zip(*sorted(zip(omega, dist))))
+
+		# Plot distance as a fct of power in a loglog graph for different omega values
+		fig, ax = Plot.initPlot()
+		ax.plot(omega, dist, '.-')
+		plt.title("Score curve in fct of $\omega$ for " + str(len(self.y[0])) + " iterations " + opt_type + \
+			" optimizations with " + num2str(sim_time) + "s simulations")
+		Plot.configurePlot(fig, ax, 'Omega','Score', legendLocation='lower right', size='small')
+		# ax.set_xlim([5e-5, 2])
+		# ax.set_ylim([1e-3, 5])
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)

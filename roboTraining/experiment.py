@@ -160,11 +160,19 @@ def createRefVal(pool_n=1):
 	return liste
 
 def createRefPowerParetoVal():
-	"""Return a 2D list of reference distance and power"""
+	"""Return a list of reference power"""
 
-	power =  np.linspace(0, 10000, num=10).tolist()
+	power =  np.linspace(100, 20000, num=10).tolist()
 
 	return power
+
+def createRefDistParetoVal():
+	"""Return a list of reference distance"""
+
+	d =  np.linspace(10, 300, num=10).tolist()
+
+	return d
+
 
 def createNoiseVal():
 	"""Return a 2D list of reference distance and power"""
@@ -172,3 +180,10 @@ def createNoiseVal():
 	noise =  np.logspace(-8, 0, num=10)
 
 	return noise
+
+def createOmegaVal():
+	""" Return a 2D list of omega values"""
+
+	f = np.linspace(0.5, 5, num=10)
+
+	return 2*np.pi*f

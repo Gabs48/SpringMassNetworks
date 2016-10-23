@@ -233,6 +233,7 @@ class Simulation(object):
 	def performanceMetric(self):
 		""" Return a score to characterize the simulation depending on the chosen performance metric """
 
+		# test distsat , powersat and change to speed! (normalized in time)
 		distance = self.getDistance()
 		speed = distance / (self.iterationNumber * self.simulEnv.timeStep)
 		power = self.robot.getPower()
@@ -243,12 +244,19 @@ class Simulation(object):
 			refDist = self.simulEnv.refDist
 			C = np.arctanh(1.0 / np.sqrt(2))
 			return [(np.tanh(C * refPower / power) * np.tanh(C * distance / refDist)), power, distance]
-		elif self.simulEnv.perfMetr == 'powereffratio':
+		elif self.simulEnv.perfMetr == 'powersat':
 			refPower = self.simulEnv.refPower
 			if power < refPower:
-				score = float(distance) / power
+				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
 			else:
-				score = float(distance) / refPower
+				score = (np.tanh(C) * np.tanh(C * distance / refDist))
+			return [score, power, distance]
+		elif self.simulEnv.perfMetr == 'distsat':
+			refPower = self.simulEnv.refPower
+			if distance < refDist:
+				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
+			else:
+				score = (np.tanh(C * refPower / power) * np.tanh(C))
 			return [score, power, distance]
 		else:
 			raise NotImplementedError ('the requested performance metric has not been implemented')
