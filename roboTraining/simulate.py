@@ -237,22 +237,20 @@ class Simulation(object):
 		distance = self.getDistance()
 		speed = distance / (self.iterationNumber * self.simulEnv.timeStep)
 		power = self.robot.getPower()
+		refPower =self.simulEnv.refPower
+			refDist = self.simulEnv.refDist
 		if self.simulEnv.perfMetr == 'dist':
 			return [distance, power, distance]
 		elif self.simulEnv.perfMetr == 'powereff':
-			refPower =self.simulEnv.refPower
-			refDist = self.simulEnv.refDist
 			C = np.arctanh(1.0 / np.sqrt(2))
 			return [(np.tanh(C * refPower / power) * np.tanh(C * distance / refDist)), power, distance]
 		elif self.simulEnv.perfMetr == 'powersat':
-			refPower = self.simulEnv.refPower
 			if power < refPower:
 				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
 			else:
 				score = (np.tanh(C) * np.tanh(C * distance / refDist))
 			return [score, power, distance]
 		elif self.simulEnv.perfMetr == 'distsat':
-			refPower = self.simulEnv.refPower
 			if distance < refDist:
 				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
 			else:
