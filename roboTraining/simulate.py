@@ -159,7 +159,7 @@ class SimulationEnvironment(object):
 		self.verlet = True;
 		self.controlPlot = controlPlot
 		self.perfMetr = perfMetr # either "dist" or "powereff"
-		if self.perfMetr == "powereff" or self.perfMetr == "powereffratio":
+		if self.perfMetr == "powereff" or self.perfMetr == "powersat" or self.perfMetr == "distsat":
 			assert refDist is not 0, refPower is not 0
 			self.refDist = refDist
 			self.refPower = refPower
@@ -233,16 +233,17 @@ class Simulation(object):
 	def performanceMetric(self):
 		""" Return a score to characterize the simulation depending on the chosen performance metric """
 
-		# test distsat , powersat and change to speed! (normalized in time)
+		# TODOOO: test distsat , powersat and change to speed! (normalized in time)
 		distance = self.getDistance()
 		speed = distance / (self.iterationNumber * self.simulEnv.timeStep)
 		power = self.robot.getPower()
 		refPower =self.simulEnv.refPower
 		refDist = self.simulEnv.refDist
+		C = np.arctanh(1.0 / np.sqrt(2))
+
 		if self.simulEnv.perfMetr == 'dist':
 			return [distance, power, distance]
 		elif self.simulEnv.perfMetr == 'powereff':
-			C = np.arctanh(1.0 / np.sqrt(2))
 			return [(np.tanh(C * refPower / power) * np.tanh(C * distance / refDist)), power, distance]
 		elif self.simulEnv.perfMetr == 'powersat':
 			if power < refPower:
