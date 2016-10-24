@@ -249,7 +249,7 @@ class Simulation(object):
 		elif self.simulEnv.perfMetr == 'powereff':
 			return [(np.tanh(C * refPower / power) * np.tanh(C * distance / refDist)), power, distance]
 		elif self.simulEnv.perfMetr == 'powersat':
-			if power < refPower:
+			if power > refPower:
 				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
 			else:
 				score = (np.tanh(C) * np.tanh(C * distance / refDist))
