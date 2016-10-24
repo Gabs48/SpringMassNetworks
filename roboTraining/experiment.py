@@ -162,16 +162,29 @@ def createRefVal(pool_n=1):
 def createRefPowerParetoVal():
 	"""Return a list of reference power"""
 
-	power =  np.linspace(100, 20000, num=10).tolist()
+	liste = []
+	# power =  np.linspace(100, 20000, num=10).tolist()
+	power =  np.array([100, 500, 1000, 2500, 5000, 7500, 10000, 12500, 15000, 17500])
+	freq = [1, 2, 3, 4, 5]
 
-	return power
+	for f in freq:
+		for p in power:
+				liste.append([p, 2*np.pi*f])
+
+	return liste
 
 def createRefDistParetoVal():
 	"""Return a list of reference distance"""
 
-	d =  np.linspace(10, 300, num=10).tolist()
+	liste = []
+	dist =  np.linspace(10, 300, num=10).tolist()
+	freq = [1, 2, 3, 4, 5]
 
-	return d
+	for f in freq:
+		for d in dist:
+				liste.append([d, 2*np.pi*f])
+
+	return liste
 
 
 def createNoiseVal():
