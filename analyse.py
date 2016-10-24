@@ -26,6 +26,8 @@ if __name__ == "__main__":
 
 	# Pareto Anaysis
 	# an.pareto()
+	an.pareto_dist()
+	# an.pareto_power()
 
 	# Spring Mass values analysis
 	# an.km()

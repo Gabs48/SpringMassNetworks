@@ -39,6 +39,8 @@ class Analysis(object):
 		self.n_conns = []
 		self.n_springs = []
 		self.ps = []
+		self.ref_pow = []
+		self.ref_dist = []
 
 		self.y = []
 		self.x = []
@@ -161,9 +163,19 @@ class Analysis(object):
 					self.ps.append(float(tab[ps_ind[0]][ps_ind[1] + 1]))
 				else:
 					self.ps.append(1)
-				# print 'Name: ' + str(f) + ' and conns ' + str(self.n_conns[-1]) + \
-				# ' and nodes ' + str(self.n_nodes[-1])  + " and springs " + str(self.n_springs[-1]) +  \
-				# ' and pop size: ' + str(self.ps[-1])
+
+				# Find reference distances and powers
+				ref_pow_ind = findIndex(tab, "refPower:")
+				ref_dist_ind = findIndex(tab, "refDist:")
+				if ref_pow_ind != [-1, -1]:
+					self.ref_pow.append(float(tab[ref_pow_ind[0]][ref_pow_ind[1] + 1]))
+				else:
+					self.ref_pow.append(-1)
+				if ref_dist_ind != [-1, -1]:
+					self.ref_dist.append(float(tab[ref_dist_ind[0]][ref_dist_ind[1] + 1]))
+				else:
+					self.ref_dist.append(-1)
+
 
 				# Find mass
 				m_ind = findIndex(tab, "mass:")
@@ -912,40 +924,16 @@ class Analysis(object):
 		if sensibility:
 			print "Il faut faire ca!"
 
-	def nodes(self):
+	def nodes(self, filename="results_nodes", show=False, save=True):
 		"""Perform specific analysis for a nodes batch"""
 
 		folder = "nodes_pic/"
 		mkdir_p(folder)
 
-		for i, score in enumerate(self.scores):
-			ext = num2str(self.n_nodes[i])
-			err_title = "Convergence error evolution with nodes number =" + ext
-			evo_title = "Averaged optimization evolution with nodes number =" + ext
-			gen_title = "Generation evolution with nodes number =" + ext
-			ss_title = "PC parameters evolution with nodes number =" + ext
-			err_filename = folder + "err_" + ext
-			evo_filename = folder + "evol_" + ext
-			gen_filename = folder + "gen_" + ext
-			ss_filename = folder + "exp_" + ext
-			self.plot_score_av(index=i, filename=evo_filename, title=evo_title)
-			self.plot_conv_err(index=i, filename=err_filename, title=err_title)
-			self.plot_gen(index=i, filename=gen_filename, title=gen_title)
-			self.plot_state_space(index=i, filename=ss_filename, title=ss_title)
-
-	def pareto(self, filename="results_pareto", show=False, save=True):
-		"""Perform specific analysis for a pareto batch"""
-		
-		print(" -- Pareto Analysis of folder " + self.path + "--")
-
+		nodes = []
 		dist = []
-		omega = []
-		ampli = []
-		omega_res = []
-		norm_dist = []
-		norm_power = []
-		k_spring = 100
-		mass = 1
+		power = []
+		score = []
 		sim_time = self.sim_time[0]
 		opt_type = self.opt_type[0]
 
@@ -954,76 +942,76 @@ class Analysis(object):
 
 			duplicate = False
 			assert self.sim_time[i] == sim_time, \
-				"For a meaningfull pareto graph, ensure the simulation times are the same for all data"
+				"For a meaningfull graph, ensure the simulation times are the same for all data"
 			assert self.opt_type[i] == opt_type, \
-				"For a meaningfull pareto graph, ensure the optimization algorithms are the same for all data"
+				"For a meaningfull graph, ensure the optimization algorithms are the same for all data"
 
-			# Fetch iteration omega and ampl value
-			it_omega = None
-			for it in self.trainable[i]:
-				if it["name"] == "omega":
-					it_omega = it["max"]
-				elif it["name"] == "amplitude":
-					it_amplitude = it["max"]
-			if not it_omega:
-				it_omega = self.omega[i]
+			# Fetch iteration nodes number value and best individu
+			it_nodes = self.n_nodes[i]
+			best = self.get_best_ind(index=i)
 
-			# If couple omega/ampli already existsn average with previous one
-			for j, om in enumerate(omega):
-				for k, am in enumerate(ampli):
-					if om == it_omega and \
-						am == it_amplitude and j == k:
-							dist[j].append(self.get_best_ind(index=i)[0])
-							duplicate = True
+			# If nodes number already existsn average with previous one
+			# print i, nodes, it_nodes
+			for j, no in enumerate(nodes):
+				if no[0] == it_nodes:
+					dist[j].append(self.y_d[best[1]][best[2]])
+					power[j].append(self.y_p[best[1]][best[2]])
+					score[j].append(best[0])
+					nodes[j].append(it_nodes)
+					duplicate = True
 
 			if duplicate == False:
-				dist.append([self.get_best_ind(index=i)[0]])
-				omega.append(it_omega)
-				ampli.append(it_amplitude)
-				omega_res.append(np.sqrt(k_spring / mass))
+				dist.append([self.y_d[best[1]][best[2]]])
+				power.append([self.y_p[best[1]][best[2]]])
+				score.append([best[0]])
+				nodes.append([it_nodes])
 
 		# Average points with multiple values
-		n_av = []
+		n_av = 0
 		for i in range(len(dist)):
-			if  len(dist[i]) > 1:
-				n_av.append(len(dist[i]))
+			n_av += len(dist[i])
 			dist[i] = sum(dist[i]) / len(dist[i])
-		if len(n_av) != 0:
-			print(" -- Averaging " + str(len(n_av)) + " graph points with on average " + \
-				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
+			power[i] = sum(power[i]) / len(power[i])
+			score[i] = sum(score[i]) / len(score[i])
+			nodes[i] = sum(nodes[i]) / len(nodes[i])
+
+		if n_av != len(dist):
+			print(" -- Averaging " + str(n_av) + " graph points with on average " + \
+				num2str(float(n_av)/len(dist)) + " data sets for each --")
 
 		# Sort lists
-		ampli, omega, dist = (list(t) for t in zip(*sorted(zip(ampli, omega, dist))))
+		nodes, dist, power, score = (list(t) for t in zip(*sorted(zip(nodes, dist, power, score))))
 
-		# Compute reference power and distance
-		max_omega = max(omega)
-		max_ampli = max(ampli)
-		n_ampli = len(ampli) / len(set(ampli))
-		n_omega = len(omega) / len(set(omega))
-		power_0 = max_omega * max_ampli ** 2
-		dist_0 = sum(dist[-n_ampli:len(ampli)])/ n_ampli
-
-		# Compute each point power and distance
-		for i in range(len(ampli)):
-			norm_power.append(ampli[i] ** 2 * omega[i] / power_0)
-			norm_dist.append(dist[i] / dist_0)
-		omega_sorted, norm_power, norm_dist = (list(t) for t in zip(*sorted(zip(omega, norm_power, norm_dist))))
-
-		# Plot distance as a fct of power in a loglog graph for different omega values
+		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
-		for i in range(len(set(omega_sorted))):
-			ax.loglog(norm_power[n_omega*i:n_omega*i+n_omega], norm_dist[n_omega*i:n_omega*i+n_omega], \
-				'.-', label="$\omega = $ " + num2str(omega_sorted[n_omega*i]/omega_res[i]) + " $\omega_{res}$")
-		for powerEff in np.logspace(-5, 5, 30):
-			x = np.array([5e-5, 2])
-			plt.plot(x, powerEff *x, 'k--', alpha = 0.5)
-		plt.title("Pareto curves for " + str(len(self.y[0])) + " iterations " + opt_type + \
+		ax.plot(nodes, dist, 'b.-', label="Distance")
+		plt.title("Distance evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
 			" optimizations with " + num2str(sim_time) + "s simulations")
-		Plot.configurePlot(fig, ax, 'Relative Power','Relative Speed', legendLocation='lower right', size='small')
-		ax.set_xlim([5e-5, 2])
-		ax.set_ylim([1e-3, 5])
+		Plot.configurePlot(fig, ax, 'Nodes number','Distance', legendLocation='lower right', size='small')
 		if show: plt.show()
-		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		if save:
+			print(" -- Print distance evolution with nodes number in " + folder + filename + "_dist.png --")
+			plt.savefig(folder + filename + "_dist.png", format='png', dpi=300)
+
+		fig, ax = Plot.initPlot()
+		ax.plot(nodes, power, 'r.-', label="Power")
+		plt.title("Power evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
+			" optimizations with " + num2str(sim_time) + "s simulations")
+		Plot.configurePlot(fig, ax, 'Nodes number','Power', legendLocation='lower right', size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print power evolution with nodes number in " + folder + filename + "_power.png --")
+			plt.savefig(folder + filename + "_power.png", format='png', dpi=300)
+
+		fig, ax = Plot.initPlot()
+		ax.plot(nodes, score, 'g.-', label="Score")
+		plt.title("Score evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
+			" optimizations with " + num2str(sim_time) + "s simulations")
+		Plot.configurePlot(fig, ax, 'Nodes number','Score', legendLocation='lower right', size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print score evolution with nodes number in " + folder + filename + "_score.png --")
+			plt.savefig(folder + filename + "_score.png", format='png', dpi=300)
 
 	def freq(self, filename="results_freq", show=False, save=True):
 		"""Perform specific analysis for a omega batch"""
@@ -1088,10 +1076,10 @@ class Analysis(object):
 		if show: plt.show()
 		if save: plt.savefig(folder + filename + ".png", format='png', dpi=300)
 
-	def pareto_dist(self, filename="results_pareto_dist", show=False, save=True):
-		"""Perform specific analysis for a pareto dist batch"""
+	def pareto(self, filename="results_pareto", show=False, save=True):
+		"""Perform specific analysis for a pareto batch"""
 		
-		print(" -- Pareto Analysis of folder " + self.path + "--")
+		print(" -- Pareto Analysis of folder " + self.path + " --")
 
 		dist = []
 		omega = []
@@ -1179,3 +1167,126 @@ class Analysis(object):
 		ax.set_ylim([1e-3, 5])
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+
+	def pareto_dist(self, filename="results_pareto_dist", show=False, save=True):
+		"""Perform specific analysis for a pareto dist batch"""
+		
+		folder = "pareto_pic/"
+		mkdir_p(folder)
+
+		d_ref = []
+		power = []
+		sim_time = self.sim_time[0]
+		opt_type = self.opt_type[0]
+
+		# Fill values from loaded variables
+		for i in range(len(self.y)):
+
+			duplicate = False
+			assert self.sim_time[i] == sim_time, \
+				"For a meaningfull graph, ensure the simulation times are the same for all data"
+			assert self.opt_type[i] == opt_type, \
+				"For a meaningfull graph, ensure the optimization algorithms are the same for all data"
+
+			# Fetch iteration nodes number value and best individu
+			it_d_ref = self.ref_dist[i]
+			best = self.get_best_ind(index=i)
+
+			# If reference distance already exists, average with previous values
+			for j, d in enumerate(d_ref):
+				if d[0] == it_d_ref:
+					power[j].append(self.y_p[best[1]][best[2]])
+					d_ref[j].append(it_d_ref)
+					duplicate = True
+
+			if duplicate == False:
+				power.append([self.y_p[best[1]][best[2]]])
+				d_ref.append([it_d_ref])
+
+		# Average points with multiple values
+		n_av = 0
+		for i in range(len(power)):
+			n_av += len(power[i])
+			power[i] = sum(power[i]) / len(power[i])
+			d_ref[i] = sum(d_ref[i]) / len(d_ref[i])
+
+		if n_av != len(power):
+			print(" -- Averaging " + str(n_av) + " graph points with on average " + \
+				num2str(float(n_av)/len(power)) + " data sets for each --")
+
+		# Sort lists
+		d_ref, power = (list(t) for t in zip(*sorted(zip(d_ref, power))))
+		power_inv = list(map((lambda x: 1. / x), power))
+		v_ref = list(map((lambda x: x / sim_time), d_ref))
+
+		# Plot distance and power as a fonction of the nodes number
+		fig, ax = Plot.initPlot()
+		ax.plot(d_ref, power_inv, 'b.-', label="$\omega =$ " + str(self.omega[0]))
+		plt.title("Pareto curves power-speed with " + opt_type + \
+			" optimizations of " + num2str(sim_time) + "s simulations")
+		Plot.configurePlot(fig, ax, 'Speed','Power$^{-1}$', legendLocation='lower right', size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print distance pareto in " + folder + filename + ".png --")
+			plt.savefig(folder + filename + ".png", format='png', dpi=300)
+
+	def pareto_power(self, filename="results_pareto_power", show=False, save=True):
+		"""Perform specific analysis for a pareto power batch"""
+
+		folder = "pareto_pic/"
+		mkdir_p(folder)
+
+		p_ref = []
+		dist = []
+		sim_time = self.sim_time[0]
+		opt_type = self.opt_type[0]
+
+		# Fill values from loaded variables
+		for i in range(len(self.y)):
+
+			duplicate = False
+			assert self.sim_time[i] == sim_time, \
+				"For a meaningfull graph, ensure the simulation times are the same for all data"
+			assert self.opt_type[i] == opt_type, \
+				"For a meaningfull graph, ensure the optimization algorithms are the same for all data"
+
+			# Fetch iteration nodes number value and best individu
+			it_p_ref = self.ref_pow[i]
+			best = self.get_best_ind(index=i)
+
+			# If reference distance already exists, average with previous values
+			for j, p in enumerate(p_ref):
+				if p[0] == it_p_ref:
+					dist[j].append(self.y_d[best[1]][best[2]])
+					p_ref[j].append(it_p_ref)
+					duplicate = True
+
+			if duplicate == False:
+				dist.append([self.y_d[best[1]][best[2]]])
+				p_ref.append([it_p_ref])
+
+		# Average points with multiple values
+		n_av = 0
+		for i in range(len(dist)):
+			n_av += len(dist[i])
+			dist[i] = sum(dist[i]) / len(dist[i])
+			p_ref[i] = sum(p_ref[i]) / len(p_ref[i])
+
+		if n_av != len(dist):
+			print(" -- Averaging " + str(n_av) + " graph points with on average " + \
+				num2str(float(n_av)/len(dist)) + " data sets for each --")
+
+		# Sort lists
+		p_ref, dist = (list(t) for t in zip(*sorted(zip(p_ref, dist))))
+		speed = list(map((lambda x: x / sim_time), dist))
+
+		# Plot distance and power as a fonction of the nodes number
+		fig, ax = Plot.initPlot()
+		ax.plot(p_ref, speed, '.-', label="$\omega =$ " + str(self.omega[0]))
+		plt.title("Pareto curves speed-power with " + opt_type + \
+			" optimizations of " + num2str(sim_time) + "s simulations")
+		Plot.configurePlot(fig, ax, 'Speed','Power', legendLocation='lower right', size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print power pareto in " + folder + filename + ".png --")
+			plt.savefig(folder + filename + ".png", format='png', dpi=300)
