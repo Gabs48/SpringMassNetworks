@@ -19,7 +19,7 @@ class Experiment(object):
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=5000, omega_=2*np.pi*2, \
-		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=3600, refDist_=100):
+		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=3600, refDist_=100, maxSpring_=200):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
@@ -41,6 +41,7 @@ class Experiment(object):
 		self.noGen = int(self.maxIter / self.popSize)
 		self.refDist = refDist_
 		self.refPower = refPower_
+		self.maxSpring = maxSpring_
 
 	def run(self):
 		"""Run the experiment"""
@@ -63,7 +64,7 @@ class Experiment(object):
 		trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
 		#trainscheme.createTrainVariable("restLength", np.min(morph.restLength[morph.restLength>0]), np.max(morph.restLength))
 		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
-		trainscheme.createTrainVariable("spring", 0, 200)
+		trainscheme.createTrainVariable("spring", 0, self.maxSpring)
 
 		saver = Save(None, self.fileName, self.folderName)
 		if self.optMethod == "CMA":
@@ -196,7 +197,13 @@ def createNoiseVal():
 
 def createOmegaVal():
 	""" Return a 2D list of omega values"""
+	
+	liste = []
+	nodes =  [3, 5, 7, 12, 20]
+	freq =  np.linspace(0.5, 5, num=10)
 
-	f = np.linspace(0.5, 5, num=40)
+	for f in freq:
+		for n in nodes:
+				liste.append([2*np.pi*f, n])
 
-	return 2*np.pi*f
+	return liste
