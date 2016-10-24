@@ -6,19 +6,20 @@ from roboTraining.analysis import *
 if __name__ == "__main__":
 
 	# Create Analysis object and load results folder
-	an = Analysis(root=".", folder="Nodes")
+	an = Analysis(root=".", folder="t")
 	an.load()
 
 	# General plots
-	# an.plot_all_scores()
-	# an.plot_all_gens()
-	# an.plot_all_conv_errs()
-	# an.plot_all_scores_av()
-	# an.plot_all_state_spaces()
+	for u in ["score", "distance", "power"]:
+		an.plot_all_raws(unit=u)
+		an.plot_all_raws_av(unit=u)
+		an.plot_all_gens(unit=u)
+	an.plot_all_conv_errs()
+	an.plot_all_state_spaces()
 
 	# Simulate best individu
 	# score, index1, index2 = an.get_best_ind()
-	# an.simulate_ind(index1, index2, simTime=50, movie=True, rc=False)
+	# an.simulate_ind(index1, index2, simTime=10, movie=True, rc=False)
 
 	# Simtime analysis
 	# an.simtime()
@@ -33,7 +34,7 @@ if __name__ == "__main__":
 	# an.freq()
 
 	# Nodes number value analysis
-	an.nodes()
+	# an.nodes()
 
 	# Noise analysis
 	# an.plot_all_noise_sims()

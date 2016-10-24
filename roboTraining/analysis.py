@@ -45,12 +45,30 @@ class Analysis(object):
 		self.x_av = []
 		self.x_std = []
 		self.x_sce_f = []
+
 		self.y_av = []
 		self.y_std_a = []
 		self.y_std_b = []
 		self.y_std = []
 		self.y_min = []
 		self.y_max = []
+
+		self.y_d = []
+		self.y_d_av = []
+		self.y_d_std_a = []
+		self.y_d_std_b = []
+		self.y_d_std = []
+		self.y_d_max = []
+		self.y_d_min = []
+
+		self.y_p = []
+		self.y_p_av = []
+		self.y_p_std_a = []
+		self.y_p_std_b = []
+		self.y_p_std = []
+		self.y_p_max = []
+		self.y_p_min = []
+
 		self.y_sce = []
 		self.y_sce_f = []
 		self.pc1 = []
@@ -177,6 +195,8 @@ class Analysis(object):
 					if window == 0:
 						window = 1
 				y_av = np.convolve(np.array(y), np.ones((window,))/window, mode='valid')
+				y_d_av = np.convolve(np.array(self.y_d[i]), np.ones((window,))/window, mode='valid')
+				y_p_av = np.convolve(np.array(self.y_p[i]), np.ones((window,))/window, mode='valid')
 				if window%2 == 0:
 					x_av = self.x[i][window/2:len(self.x[i])-window/2+1]
 				else:
@@ -184,26 +204,58 @@ class Analysis(object):
 
 				# Compute std deviation
 				y_std = self._window_stdev(np.array(y), window=window)
+				y_d_std = self._window_stdev(np.array(self.y_d[i]), window=window)
+				y_p_std = self._window_stdev(np.array(self.y_p[i]), window=window)
 				x_std = self.x[i][window:len(self.x[i])-window+1]
 				if window%2 == 0:
 					y_std_a = y_av[window/2:len(y_av)-window/2] + y_std
 					y_std_b = y_av[window/2:len(y_av)-window/2] - y_std
+					y_d_std_a = y_d_av[window/2:len(y_d_av)-window/2] + y_d_std
+					y_d_std_b = y_d_av[window/2:len(y_d_av)-window/2] - y_d_std
+					y_p_std_a = y_p_av[window/2:len(y_p_av)-window/2] + y_p_std
+					y_p_std_b = y_p_av[window/2:len(y_p_av)-window/2] - y_p_std
 				else:
 					y_std_a = y_av[window/2:len(y_av)-window/2-1] + y_std
 					y_std_b = y_av[window/2:len(y_av)-window/2-1] - y_std
+					y_d_std_a = y_d_av[window/2:len(y_d_av)-window/2-1] + y_d_std
+					y_d_std_b = y_d_av[window/2:len(y_d_av)-window/2-1] - y_d_std
+					y_p_std_a = y_p_av[window/2:len(y_p_av)-window/2-1] + y_p_std
+					y_p_std_b = y_p_av[window/2:len(y_p_av)-window/2-1] - y_p_std
 
 				# Compute min and max
-				val_max = y[0]
-				val_min = y[0]
+				val_s_max = y[0]
+				val_s_min = y[0]
+				val_d_max = y[0]
+				val_d_min = y[0]
+				val_p_max = y[0]
+				val_p_min = y[0]
 				y_max = []
 				y_min = []
 				for val in y:
-					if val_max < val:
-						val_max = val
-					if val_min > val:
-						val_min = val
-					y_max.append(val_max)
-					y_min.append(val_min)
+					if val_s_max < val:
+						val_s_max = val
+					if val_s_min > val:
+						val_s_min = val
+					y_max.append(val_s_max)
+					y_min.append(val_s_min)
+				y_d_max = []
+				y_d_min = []
+				for val in self.y_d[i]:
+					if val_d_max < val:
+						val_d_max = val
+					if val_d_min > val:
+						val_d_min = val
+					y_d_max.append(val_d_max)
+					y_d_min.append(val_d_min)
+				y_p_max = []
+				y_p_min = []
+				for val in self.y_p[i]:
+					if val_p_max < val:
+						val_p_max = val
+					if val_p_min > val:
+						val_p_min = val
+					y_p_max.append(val_p_max)
+					y_p_min.append(val_p_min)
 
 				# Compute square convergence error
 				if window%2 == 0:
@@ -246,21 +298,37 @@ class Analysis(object):
 					self.pc2_std.append(pc2_std)
 
 				self.window.append(window)
-				self.y_av.append(y_av)
+				self.x_av.append(x_av)
 				self.x_std.append(x_std)
+
+				self.y_av.append(y_av)
 				self.y_std_a.append(y_std_a)
 				self.y_std_b.append(y_std_b)
 				self.y_std.append(y_std)
-				self.x_av.append(x_av)
 				self.y_max.append(y_max)
 				self.y_min.append(y_min)
+
+				self.y_d_av.append(y_d_av)
+				self.y_d_std_a.append(y_d_std_a)
+				self.y_d_std_b.append(y_d_std_b)
+				self.y_d_std.append(y_d_std)
+				self.y_d_max.append(y_d_max)
+				self.y_d_min.append(y_d_min)
+
+				self.y_p_av.append(y_p_av)
+				self.y_p_std_a.append(y_p_std_a)
+				self.y_p_std_b.append(y_p_std_b)
+				self.y_p_std.append(y_p_std)
+				self.y_p_max.append(y_p_max)
+				self.y_p_min.append(y_p_min)
+
 				self.y_sce.append(y_sce)
 				self.y_sce_f.append(y_sce_f)
 				self.x_sce_f.append(x_sce_f)
 
 				i += 1
 
-	def _rearrange_pop(self, index=0):
+	def _rearrange_pop(self, index=0, unit="score"):
 		"""Group a score list in generations and return gen number min, max and average"""
 
 
@@ -271,6 +339,10 @@ class Analysis(object):
 			self.filenames[index] + " or this sript!"
 
 		array = np.array(self.y[index])
+		if unit == "distance":
+			array = np.array(self.y_d)
+		if unit == "power":
+			array = np.array(self.y_p)
 		matrix = np.reshape(array, (-1, ps))
 		y_min = np.min(matrix, axis=1)
 		y_max = np.max(matrix, axis=1)
@@ -309,43 +381,52 @@ class Analysis(object):
 							i += 1
 
 		# Fill score list and iteration range
+		i = 0
 		for y in self.scores:
 			self.y.append(list(map(float, y)))
+			self.y_d.append(list(map(float, self.dists[i])))
+			self.y_p.append(list(map(float, self.pows[i])))
 			self.x.append(range((len(y))))
+			i += 1
 
 		# Load configs and parameters
 		self._load_configs()
 
-	def plot_score(self, index=0, filename="results_score", title=None, show=False, save=True):
+	def plot_raw(self, index=0, filename="results_raw", unit="score", title=None, show=False, save=True):
 		"""Plot score evolution for a given file"""
 		
-		print(" -- Printing score bar graph for file " + self.filenames[index])
+		print(" -- Printing raw " + unit + " bar graph for file " + self.filenames[index])
 
+		val = self.y
+		if unit == "distance":
+			val = self.y_d
+		if unit == "power":
+			val = self.y_p
 		fig, ax = Plot.initPlot()
 		for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
 			item.set_fontsize(17)
 
 		barWidth = 0.35
 		opacity = 0.4
-		plt.bar(self.x[index], self.y[index], barWidth, alpha = opacity, color = 'k', label = 'distance traveled')
+		plt.bar(self.x[index], val[index], barWidth, alpha = opacity, color = 'k', label = 'distance traveled')
 		if title != None:
 			plt.title(title)
 		else:
-			plt.title("Training Scores (optimum  = " + str(max(self.y[index])) + ")")
+			plt.title("Training " + unit + " (optimum  = " + str(max(val[index])) + ")")
 		Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend = True, legendLocation = 'lower center')
 		plt.xlabel('Iteration')
-		plt.ylabel('Distance Traveled')
+		plt.ylabel(unit)
 		if show: plt.show()
-		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		if save: plt.savefig(filename + "_" + unit + ".png", format='png', dpi=300)
 		plt.close()
 
-	def plot_gen(self, index=0, filename="results_gen", title=None, show=False, save=True):
+	def plot_gen(self, index=0, filename="results_gen", unit="score", title=None, show=False, save=True):
 		"""Plot scores rearranged in generations for a given file"""
 
 		if self.opt_type[index] != "RANDOM":
-			x, y_min, y_max, y_av = self._rearrange_pop(index)
+			x, y_min, y_max, y_av = self._rearrange_pop(index, unit)
 
-			print(" -- Printing generation scores for file " + self.filenames[index])
+			print(" -- Printing generation " + unit + " for file " + self.filenames[index])
 
 			fig, ax = Plot.initPlot()
 			for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
@@ -357,45 +438,66 @@ class Analysis(object):
 			if title != None:
 				plt.title(title)
 			else:
-				plt.title("Training scores of " + self.opt_type[index] + " algorithm with popSize = " + \
+				plt.title("Training " + unit + " of " + self.opt_type[index] + " algorithm with popSize = " + \
 				num2str(self.ps[index]))
 			Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
 			plt.xlabel('Generation number')
-			plt.ylabel('Distance Traveled')
+			plt.ylabel(unit)
 			if show: plt.show()
-			if save: plt.savefig(filename + ".png", format='png', dpi=300)
+			if save: plt.savefig(filename + "_" + unit + ".png", format='png', dpi=300)
 			plt.close()
 
 		else:
-			print(" -- Can't print generation scores for file " + self.filenames[index] + \
+			print(" -- Can't print generation " + unit + " for file " + self.filenames[index] + \
 				" with "+ self.opt_type[index] + " optimization type.")
 
-	def plot_score_av(self, index=0, filename="results_score_av", title=None, show=False, save=True):
+	def plot_raw_av(self, index=0, filename="results_raw_av", unit="score", title=None, show=False, save=True):
 		"""Plot average and max score evolution for a given file"""
 
 		if not self.y_max:
 			self._compute_stats()
 
-		print(" -- Printing score stats graph for file " + self.filenames[index])
+		val = self.y
+		val_max = self.y_max
+		val_std_a = self.y_std_a
+		val_av = self.y_av
+		val_std_b = self.y_std_b
+		val_min = self.y_min
+		if unit == "distance":
+			val = self.y_d
+			val_max = self.y_d_max
+			val_std_a = self.y_d_std_a
+			val_av = self.y_d_av
+			val_std_b = self.y_d_std_b
+			val_min = self.y_d_min
+		if unit == "power":
+			val = self.y_p
+			val_max = self.y_p_max
+			val_std_a = self.y_p_std_a
+			val_av = self.y_p_av
+			val_std_b = self.y_p_std_b
+			val_min = self.y_p_min
+
+		print(" -- Printing " + unit + " stats graph for file " + self.filenames[index])
 
 		fig, ax = Plot.initPlot()
 		for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
 			item.set_fontsize(17)
 
 		plt.plot(self.x[index], self.y_max[index] ,"r-", label="maximum")
-		plt.plot(self.x_std[index], self.y_std_a[index] ,"r--", linewidth=0.2, label="max std dev")
-		plt.plot(self.x_av[index], self.y_av[index], "g-", label="average score")
-		plt.plot(self.x_std[index], self.y_std_b[index] ,"b--", linewidth=0.2, label="min std dev")
-		plt.plot(self.x[index], self.y_min[index], "b-", label="minimum")
+		plt.plot(self.x_std[index], val_std_a[index] ,"r--", linewidth=0.2, label="max std dev")
+		plt.plot(self.x_av[index], val_av[index], "g-", label="average score")
+		plt.plot(self.x_std[index], val_std_b[index] ,"b--", linewidth=0.2, label="min std dev")
+		plt.plot(self.x[index], val_min[index], "b-", label="minimum")
 		if title != None:
 			plt.title(title)
 		else:
-			plt.title("Training max and average (optimum  = " + str(max(self.y[index])) + ")")
+			plt.title("Training max and average " + unit + " (optimum  = " + str(max(self.y[index])) + ")")
 		Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
 		plt.xlabel('Iteration')
-		plt.ylabel('Distance Traveled')
+		plt.ylabel(unit)
 		if show: plt.show()
-		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		if save: plt.savefig(filename + "_" + unit + ".png", format='png', dpi=300)
 		plt.close()
 
 	def plot_conv_err(self, index=0, filename="results_score_conv_err", title=None, show=False, save=True):
@@ -539,28 +641,28 @@ class Analysis(object):
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 		plt.close()
 
-	def plot_all_scores(self, filename="results_score", show=False, save=True):
+	def plot_all_raws(self, filename="results_raw", unit="score", show=False, save=True):
 		"""Plot score evolution for a all files. This can take several minutes"""
 
 		i = 0
 		for y in self.y:
-			self.plot_score(index=i, filename=filename + "_" + str(i), show=show, save=save)
+			self.plot_raw(index=i, filename=filename + "_" + str(i), unit=unit, show=show, save=save)
 			i += 1
 
-	def plot_all_gens(self, filename="results_gen", show=False, save=True):
+	def plot_all_gens(self, filename="results_gen", unit="score", show=False, save=True):
 		"""Plot score evolution rearranged in generations for all files."""
 
 		i = 0
 		for y in self.y:
-			self.plot_gen(index=i, filename=filename + "_" + str(i), show=show, save=save)
+			self.plot_gen(index=i, filename=filename + "_" + str(i), unit=unit, show=show, save=save)
 			i += 1
 
-	def plot_all_scores_av(self, filename="results_score_av", show=False, save=True):
+	def plot_all_raws_av(self, filename="results_raw_av", unit="score", show=False, save=True):
 		"""Plot average and max score evolution for a all files."""
 
 		i = 0
 		for y in self.y:
-			self.plot_score_av(index=i, filename=filename + "_" + str(i), show=show, save=save)
+			self.plot_raw_av(index=i, filename=filename + "_" + str(i), unit=unit, show=show, save=save)
 			i += 1
 
 	def plot_all_conv_errs(self, filename="results_score_conv_err", show=False, save=True):
@@ -923,7 +1025,7 @@ class Analysis(object):
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 
-	def freq(self, filename="reusults_freq", shhow=False, save=True):
+	def freq(self, filename="results_freq", show=False, save=True):
 		"""Perform specific analysis for a omega batch"""
 
 		folder = "omega_pic/"
@@ -977,11 +1079,103 @@ class Analysis(object):
 
 		# Plot distance as a fct of power in a loglog graph for different omega values
 		fig, ax = Plot.initPlot()
-		ax.plot(omega, dist, '.-')
+		ax.plot(omega, dist, '.-', label="Omega evolution")
 		plt.title("Score curve in fct of $\omega$ for " + str(len(self.y[0])) + " iterations " + opt_type + \
 			" optimizations with " + num2str(sim_time) + "s simulations")
 		Plot.configurePlot(fig, ax, 'Omega','Score', legendLocation='lower right', size='small')
 		# ax.set_xlim([5e-5, 2])
 		# ax.set_ylim([1e-3, 5])
+		if show: plt.show()
+		if save: plt.savefig(folder + filename + ".png", format='png', dpi=300)
+
+	def pareto_dist(self, filename="results_pareto_dist", show=False, save=True):
+		"""Perform specific analysis for a pareto dist batch"""
+		
+		print(" -- Pareto Analysis of folder " + self.path + "--")
+
+		dist = []
+		omega = []
+		ampli = []
+		omega_res = []
+		norm_dist = []
+		norm_power = []
+		k_spring = 100
+		mass = 1
+		sim_time = self.sim_time[0]
+		opt_type = self.opt_type[0]
+
+		# Fill values from loaded variables
+		for i in range(len(self.y)):
+
+			duplicate = False
+			assert self.sim_time[i] == sim_time, \
+				"For a meaningfull pareto graph, ensure the simulation times are the same for all data"
+			assert self.opt_type[i] == opt_type, \
+				"For a meaningfull pareto graph, ensure the optimization algorithms are the same for all data"
+
+			# Fetch iteration omega and ampl value
+			it_omega = None
+			for it in self.trainable[i]:
+				if it["name"] == "omega":
+					it_omega = it["max"]
+				elif it["name"] == "amplitude":
+					it_amplitude = it["max"]
+			if not it_omega:
+				it_omega = self.omega[i]
+
+			# If couple omega/ampli already existsn average with previous one
+			for j, om in enumerate(omega):
+				for k, am in enumerate(ampli):
+					if om == it_omega and \
+						am == it_amplitude and j == k:
+							dist[j].append(self.get_best_ind(index=i)[0])
+							duplicate = True
+
+			if duplicate == False:
+				dist.append([self.get_best_ind(index=i)[0]])
+				omega.append(it_omega)
+				ampli.append(it_amplitude)
+				omega_res.append(np.sqrt(k_spring / mass))
+
+		# Average points with multiple values
+		n_av = []
+		for i in range(len(dist)):
+			if  len(dist[i]) > 1:
+				n_av.append(len(dist[i]))
+			dist[i] = sum(dist[i]) / len(dist[i])
+		if len(n_av) != 0:
+			print(" -- Averaging " + str(len(n_av)) + " graph points with on average " + \
+				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
+
+		# Sort lists
+		ampli, omega, dist = (list(t) for t in zip(*sorted(zip(ampli, omega, dist))))
+
+		# Compute reference power and distance
+		max_omega = max(omega)
+		max_ampli = max(ampli)
+		n_ampli = len(ampli) / len(set(ampli))
+		n_omega = len(omega) / len(set(omega))
+		power_0 = max_omega * max_ampli ** 2
+		dist_0 = sum(dist[-n_ampli:len(ampli)])/ n_ampli
+
+		# Compute each point power and distance
+		for i in range(len(ampli)):
+			norm_power.append(ampli[i] ** 2 * omega[i] / power_0)
+			norm_dist.append(dist[i] / dist_0)
+		omega_sorted, norm_power, norm_dist = (list(t) for t in zip(*sorted(zip(omega, norm_power, norm_dist))))
+
+		# Plot distance as a fct of power in a loglog graph for different omega values
+		fig, ax = Plot.initPlot()
+		for i in range(len(set(omega_sorted))):
+			ax.loglog(norm_power[n_omega*i:n_omega*i+n_omega], norm_dist[n_omega*i:n_omega*i+n_omega], \
+				'.-', label="$\omega = $ " + num2str(omega_sorted[n_omega*i]/omega_res[i]) + " $\omega_{res}$")
+		for powerEff in np.logspace(-5, 5, 30):
+			x = np.array([5e-5, 2])
+			plt.plot(x, powerEff *x, 'k--', alpha = 0.5)
+		plt.title("Pareto curves for " + str(len(self.y[0])) + " iterations " + opt_type + \
+			" optimizations with " + num2str(sim_time) + "s simulations")
+		Plot.configurePlot(fig, ax, 'Relative Power','Relative Speed', legendLocation='lower right', size='small')
+		ax.set_xlim([5e-5, 2])
+		ax.set_ylim([1e-3, 5])
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
