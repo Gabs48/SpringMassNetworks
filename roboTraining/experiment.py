@@ -184,6 +184,6 @@ def createNoiseVal():
 def createOmegaVal():
 	""" Return a 2D list of omega values"""
 
-	f = np.linspace(0.5, 5, num=10)
+	f = np.linspace(0.5, 5, num=40)
 
 	return 2*np.pi*f
