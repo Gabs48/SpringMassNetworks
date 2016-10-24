@@ -99,7 +99,7 @@ if __name__ == "__main__":
 						" -- Experiment " + str(index+1) + " with number of nodes=" + \
 						str(arg_list[index][0]) + " and " + str(train_it_index) + " iterations")
 					e = Experiment(fileName_=fileName, folderName_="Nodes", noNodes_=arg_list[index][0],\
-					 mass_=float(20)/arg_list[index][0], simTime_=simTime, maxIter_=train_it_index, massSpring_=1000)
+					 mass_=float(20)/arg_list[index][0], simTime_=simTime, maxIter_=train_it_index, maxSpring_=1000)
 					e.run()
 
 		#  Different couple of spring constant and mass
@@ -206,7 +206,8 @@ if __name__ == "__main__":
 				index = i * size + rank
 				if index < len(arg_list):
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
-						" -- Experiment " + str(index+1) + " with omega=" + str(arg_list[index]))
+						" -- Experiment " + str(index+1) + " with omega=" + str(arg_list[index][0]) + \
+						" and n_nodes=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Omega", omega_=arg_list[index][0],\
 					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereff", noNodes_=arg_list[index][1])
 					e.run()
