@@ -162,7 +162,8 @@ if __name__ == "__main__":
 				index = i * size + rank
 				if index < len(arg_list):
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
-						" -- Experiment " + str(index+1) + " with P ref=" + str(arg_list[index]))
+						" -- Experiment " + str(index+1) + " with Pref=" + str(arg_list[index][0]) + \
+						" and Omega=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Pareto_power", refPower_=arg_list[index][0],\
 					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="powersat")
 					e.run()
@@ -183,7 +184,8 @@ if __name__ == "__main__":
 				index = i * size + rank
 				if index < len(arg_list):
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
-						" -- Experiment " + str(index+1) + " with P ref=" + str(arg_list[index]))
+						" -- Experiment " + str(index+1) + " with Dref=" + str(arg_list[index][0]) + \
+						" and Omega=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Pareto_dist", refDist_=arg_list[index][0],\
 					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="distsat")
 					e.run()
