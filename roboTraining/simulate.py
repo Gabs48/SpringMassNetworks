@@ -148,7 +148,7 @@ class Plotter(object):
 
 class SimulationEnvironment(object):
 	""" class with general Parameters for Simulations but not bound to a specific robot"""
-	param = ["timeStep", "simulationLength", "verlet"]
+	param = ["timeStep", "simulationLength", "verlet", "refPower", "refDist"]
 
 	def  __init__(self,timeStep = 0.005, simulationLength=10000, plot = Plotter(), verlet = True, controlPlot = True, 
 		perfMetr = "dist", refDist = 0, refPower = 0):
@@ -158,11 +158,14 @@ class SimulationEnvironment(object):
 		self.simulationLength = simulationLength # number of iterations
 		self.verlet = True;
 		self.controlPlot = controlPlot
-		self.perfMetr = perfMetr # either "dist" or "powereff"
+		self.perfMetr = perfMetr
 		if self.perfMetr == "powereff" or self.perfMetr == "powersat" or self.perfMetr == "distsat":
 			assert refDist is not 0, refPower is not 0
 			self.refDist = refDist
 			self.refPower = refPower
+		else:
+			self.refDist = 0
+			self.refPower = 0
 
 	def end(self):
 
