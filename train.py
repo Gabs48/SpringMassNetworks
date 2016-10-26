@@ -210,7 +210,7 @@ if __name__ == "__main__":
 						" and n_nodes=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Omega", omega_=arg_list[index][0],\
 					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereff", noNodes_=arg_list[index][1], \
-					mass_=float(20)/arg_list[index][1], maxIter_=train_it_index, maxSpring_=1000)
+					mass_=float(20)/arg_list[index][1], maxSpring_=1000)
 					e.run()
 
 
