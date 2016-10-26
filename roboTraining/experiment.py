@@ -19,7 +19,8 @@ class Experiment(object):
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=5000, omega_=2*np.pi*2, \
-		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=3600, refDist_=100, maxSpring_=200):
+		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=3600, refDist_=500, maxSpring_=200, \
+		noisy_=False):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
@@ -42,6 +43,7 @@ class Experiment(object):
 		self.refDist = refDist_
 		self.refPower = refPower_
 		self.maxSpring = maxSpring_
+		self.noisy = noisy_
 
 	def run(self):
 		"""Run the experiment"""
@@ -50,19 +52,20 @@ class Experiment(object):
 		env = HardEnvironment()
 		morph = SpringMorphology(mass=self.mass, noNodes=self.noNodes, spring=self.spring, \
 			noNeighbours=self.noNeighbours, environment=env)
-		control = SineControl(morph, omega=self.omega)
+		control = SineControl(morph)#, omega=self.omega)
 		robot = Robot(morph, control)
 
 		plotter = Plotter(plot=False);
 		simulenv = SimulationEnvironment(timeStep=self.simTimeStep, simulationLength=int(self.simTime/self.simTimeStep), \
-		plot=plotter, perfMetr=self.perfMetr, controlPlot=self.controlPlot, refDist=self.refDist, refPower=self.refPower)
+		plot=plotter, perfMetr=self.perfMetr, controlPlot=self.controlPlot, refDist=self.refDist, refPower=self.refPower, \
+		noisy = self.noisy)
 
 		trainscheme = TrainingScheme()
 		#trainscheme.createTrainVariable("mass", 0, 1)
 		#trainscheme.createTrainVariable("omega", 0, self.omega)
-		#trainscheme.createTrainVariable("base_omega", 0, self.omega)
+		trainscheme.createTrainVariable("base_omega", 0, self.omega)
 		trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
-		#trainscheme.createTrainVariable("restLength", np.min(morph.restLength[morph.restLength>0]), np.max(morph.restLength))
+		##trainscheme.createTrainVariable("restLength", np.min(morph.restLength[morph.restLength>0]), np.max(morph.restLength))
 		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
 		trainscheme.createTrainVariable("spring", 0, self.maxSpring)
 
@@ -77,7 +80,7 @@ class Experiment(object):
 
 		# Perform optimization
 		param, score, t_tot = train.run() 
-		bestRobot = trainscheme.normalizedMatrix2robot(train.bestParameters, robot)
+		bestRobot = trainscheme.normalizedList2robot(train.bestParameters, robot)
 
 		# Print and save results
 		comm = MPI.COMM_WORLD
@@ -186,7 +189,6 @@ def createRefDistParetoVal():
 				liste.append([d, 2*np.pi*f])
 
 	return liste
-
 
 def createNoiseVal():
 	"""Return a 2D list of reference distance and power"""

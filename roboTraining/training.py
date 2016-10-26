@@ -14,7 +14,7 @@ import platform
 import time
 
 from robot import Robot 
-from simulate import Simulation, VerletSimulation
+from simulate import Simulation, VerletSimulation, NoisyImpulseVerletSimulation
 from pyevolve import (G2DList,GSimpleGA, Initializators, DBAdapters,
 					 Mutators, Selectors, Crossovers, Consts, Scaling)
 import cma
@@ -28,16 +28,18 @@ class TrainingVariable(object):
 		self.max = max
 
 	def normalize(self, value):
-		"""normalize value or list/array of values so it always lies between 0 and 1"""
-		if type(value) is ListType:
-			value=np.array(value)
-		return 1.0*(value - self.min)/(self.max-self.min)
+		"""normalize value or list of values so it always lies between 0 and 1"""
+		norm = []
+		for item in value:
+			norm.append(1.0*(item - self.min)/(self.max-self.min))
+		return norm
 
-	def denormalize(self,value):
-		""" calculate the original (non-normalized) value of a normalized value or list/array of values """
-		if type(value) is ListType:
-			value=np.array(value)
-		return value*(self.max-self.min)+self.min
+	def denormalize(self, value):
+		""" calculate the original (non-normalized) value of a normalized value or list of values """
+		denorm = []
+		for item in value:
+			denorm.append(item*(self.max-self.min)+self.min)
+		return denorm
 
 class TrainingScheme(object):
 	""" collection of TrainVariables and associated methods"""
@@ -51,22 +53,11 @@ class TrainingScheme(object):
 		self.trainableParams.append(trainVariable)
 		self.names.append(trainVariable.name)
 
-	def addHomogeneousTrainVariable(self,trainVariable):
-		""" add a variable to be trained homogeneously to the TrainingScheme. By homogeneously, we mean that 
-		the variable remains identiqual for each nodes or links of the robot."""
-		self.HomogeneousTrainableParams.append(trainVariable)
-		self.names.append("homogeneouse_" + trainVariable.name)
-
 	def createTrainVariable(self,name,min,max):
 		""" create and add a variable that should be trained to the TraingScheme"""
 		self.addTrainVariable(TrainingVariable(name,min,max))
 
-	def createHomogeneousTrainVariable(self,name,min,max):
-		""" create and add a homogeneous variable that should be trained to the TraingScheme. By homogeneous, 
-		we mean that the variable remains identiqual for each nodes or links of the robot."""
-		self.addTrainVariable(TrainingVariable(name,min,max))
-
-	def robot2normalizedMatrix(self,robot):
+	def robot2normalizedList(self,robot):
 		""" --- convert the requested robot parameters to a matrix ---
 		
 		-- parameters --
@@ -78,10 +69,11 @@ class TrainingScheme(object):
 			normalized matrix of which the headers are given by the names attribute
 		"""
 
-		matrix = robot.robot2matrix(self.names);
+		liste = robot.robot2liste(self.names);
+		norm_liste = []
 		for i in range(len(self.trainableParams)):
-			matrix[i,:]=self.trainableParams[i].normalize(matrix[i,:])
-		return matrix
+			norm_liste.append(self.trainableParams[i].normalize(liste[i]))
+		return norm_liste
 
 	def loadCSV(self, fileName, index, n_param=3):
 		"""Load the training parameters from a config file and its index"""
@@ -102,15 +94,41 @@ class TrainingScheme(object):
 
 		return matrix
 
+	def normalizedList2robot(self, liste, robot):
+		""" --- update the robot to a matrix of normalized parameters together with a list of parameters  ---
+		-- parameters --
+		- liste : python liste
+			matrix of which the headers are given by paramlist
+		- robot : Robot
+			the robot on which the parameters should be updated
+
+		-- parameters --
+		- robot : Robot
+			robot with parameters updated according to the matrix
+		"""
+
+		assert len(liste) != 0, "The liste of parameters should not be empty"
+		denorm_liste = []
+		list_size = robot.robot2liste(self.names);
+		i = 0; j = 0
+		for row in list_size:
+			for cell in row:
+				item = liste[i]
+				assert item <= 1, "Parameters values cannot be larger than one"
+				assert item >= 0, "Parameters values cannot be smaller than zero"
+				i += 1
+			denorm_liste.append(self.trainableParams[j].denormalize(liste[i-len(row):i]))
+			j += 1
+
+		return robot.list2robot(self.names, denorm_liste, True)
+
 	def normalizedMatrix2robot(self,matrix,robot):
 		""" --- update the robot to a matrix of normalized parameters together with a list of parameters  ---
-		
 		-- parameters --
 		- matrix : matrix
 			matrix of which the headers are given by paramlist
 		- robot : Robot
 			the robot on which the parameters should be updated
-
 		-- parameters --
 		- robot : Robot
 			robot with parameters updated according to the matrix
@@ -124,9 +142,10 @@ class TrainingScheme(object):
 			matrix[i, :] = self.trainableParams[ i].denormalize( matrix[i, :])
 		return robot.matrix2robot(self.names,matrix,True)
 
+## Certainly does not work anymore!
 class PartialTrainingScheme(TrainingScheme):
 
-	def __init__(self, trainNodes = 0, noConnections = 0, robot = None, fraction = -1):
+	def __init__(self, trainNodes=0, noConnections=0, robot=None, fraction=-1):
 		if robot != None:
 			noConnections = robot.getNoConnections()
 		if fraction >= 0:
@@ -139,7 +158,7 @@ class PartialTrainingScheme(TrainingScheme):
 		self.default = np.zeros((0,noConnections))
 		super(PartialTrainingScheme, self).__init__()
 
-	def addTrainVariable(self,trainVariable, zero = False):
+	def addTrainVariable(self,trainVariable, zero=False):
 		""" add a variable to be trained to the TrainingScheme"""
 		if zero:
 			append = np.zeros((1, self.noConnections))
@@ -149,7 +168,7 @@ class PartialTrainingScheme(TrainingScheme):
 		# append DEFAULT
 		super(PartialTrainingScheme, self).addTrainVariable(trainVariable)
 
-	def createTrainVariable(self,name,min,max, zero = False):
+	def createTrainVariable(self,name,min,max, zero=False):
 		""" create and add a variable that should be trained to the TraingScheme"""
 		self.addTrainVariable(TrainingVariable(name,min,max), zero = zero)
 
@@ -157,7 +176,7 @@ class PartialTrainingScheme(TrainingScheme):
 		partialMatrix = self.createPartialMatrix(super(PartialTrainingScheme, self).robot2normalizedMatrix(robot))
 		return partialMatrix
 
-	def normalizedMatrix2robot(self, matrix , robot):
+	def normalizedMatrix2robot(self, matrix, robot):
 		fullMatrix = self.createFullMatrix(matrix)
 		return super(PartialTrainingScheme, self).normalizedMatrix2robot(fullMatrix, robot)
 
@@ -184,7 +203,10 @@ class Training(object):
 		self.robot = robot
 		self.trainscheme = trainscheme
 		self.simulEnv = simulEnv
-		self.shapeParamList = np.shape(trainscheme.robot2normalizedMatrix(robot))
+		self.lenParamList = []
+		paramList = trainscheme.robot2normalizedList(robot)
+		for i in range(len(paramList)):
+			self.lenParamList.append(len(paramList[i]))
 		self.showIntermediateResults = showIntermediateResults
 		self.keepIntermediateParameters = keepIntermediateParameters
 		self.bestParameters = None;
@@ -226,13 +248,23 @@ class Training(object):
 	def evaluateParam(self, param):
 		""" calculate the performance index of a parameter set"""
 		
-		self.trainscheme.normalizedMatrix2robot(param, self.robot)
+		self.trainscheme.normalizedList2robot(param, self.robot)
 		# FIX NOISE
 		if self.simulEnv.verlet:
-			score = VerletSimulation(self.simulEnv, self.robot).runSimulation()
+			if self.simulEnv.noisy:
+				score = NoisyImpulseVerletSimulation(self.simulEnv, self.robot).runSimulation()
+			else:
+				score = VerletSimulation(self.simulEnv, self.robot).runSimulation()
 		else:
 			score = Simulation(self.simulEnv, self.robot).runSimulation()
-		self.addResult(param, score)
+
+		params = dict()
+		i = 0; j = 0
+		for p in self.trainscheme.trainableParams:
+			params[p.name] = param[j: j + self.lenParamList[i]].tolist()
+			j += self.lenParamList[i]
+			i += 1
+		self.addResult(params, score)
 		return score[0]
 	
 	def save(self, name = None, savePlot = True): 
@@ -505,7 +537,7 @@ class CMATraining(Training):
 		self.initStd = initStd
 		self.initMean = initMean
 		self.maxIter = maxIter
-		self.dim = self.shapeParamList[0] * self.shapeParamList[1]
+		self.dim = sum(self.lenParamList)
 		self.sigmaList = []
 
 	def run(self):
@@ -527,13 +559,14 @@ class CMATraining(Training):
 
 		t_tot = time.time() - t_init
 		
-		self.bestParameters = self.listToArray(res[0])
+		self.bestParameters = res[0]
 		self.optimalscore = self.resultTransform(res[1])
 		
 		return self.bestParameters, self.optimalscore, t_tot
 
-	def evaluateParam(self, list):
-		score = super(CMATraining,self).evaluateParam( self.listToArray(list))
+	def evaluateParam(self, liste):
+
+		score = super(CMATraining,self).evaluateParam(liste)
 		return self.resultTransform(score)
 
 	def resultTransform(self, result):
@@ -541,16 +574,6 @@ class CMATraining(Training):
 		if self.maximization :
 			return - result;
 		else: return result;
-
-	def arrayToList(self, array):
-		temp = np.reshape(array,(1, self.dim))
-		array.tolist()[0]
-		return array
-
-	def listToArray(self, list):
-		temp = np.array(list);
-		array = np.reshape(temp, self.shapeParamList)
-		return array
 
 	def cmaPlot(self, filename):
 		cma.plot();

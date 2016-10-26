@@ -1,4 +1,5 @@
 ﻿import csv
+import copy
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -520,7 +521,6 @@ class SpringMorphology3D(SpringMorphology):
 			endNo = np.arange(noNodes)
 			connections[startNo, endNo] = 1  # connect adjacent nodes of outer circle
 		self.stressed[startNo, endNo] = 1
-		# print connections
 		return connections
 
 	def getRestLength(self, initialPos, connections):
@@ -784,7 +784,7 @@ class SineControl(TimeControl):
 				speed of modulation
 	""" 
 	uniform2pi = lambda shape: np.random.uniform(0, 2*np.pi, shape)
-	param = ["amplitude", "phase", "omega", "base_omega"]
+	param = ["amplitude", "phase", "omega"]
 
 	def __init__(self, morph, amplitude=0.2, phase=uniform2pi, omega=2*np.pi):
 		""" --- Initialise a Control Structure for a Robot based on sines ---
@@ -804,7 +804,8 @@ class SineControl(TimeControl):
 		self.amplitude = morph.connectionParameterMatrix(amplitude)
 		self.phase = morph.connectionParameterMatrix(phase)
 		self.omega = morph.connectionParameterMatrix(omega)
-		self.base_omega = np.matrix([omega])
+
+		self.base_omega = copy.copy(np.matrix([omega]))
 
 	def loadCSV(self, fileName):
 		"""Load the controller from a config file"""
@@ -844,7 +845,6 @@ class SineControl(TimeControl):
 
 	def getParams(self):
 		""" Get the robot parameters: amplitude, phase and modulation speed"""
-
 		return self.amplitude, self.phase, self.omega
 
 	def setParams(self, a, p, omega):
@@ -1004,7 +1004,7 @@ class Robot(object):
 		return self.state.speed
 
 	@staticmethod
-	def getDistanceTraveled(initstate,endstate):
+	def getDistanceTraveled(initstate, endstate):
 		xMeanStart = np.mean(initstate.pos.x)
 		xMeanEnd = np.mean(endstate.pos.x)
 		return xMeanEnd - xMeanStart
@@ -1013,9 +1013,8 @@ class Robot(object):
 
 		return self.state.shape
 
-	def getProperty(self,name):
-		""" returns the array of the property with the required name 
-			(works only for properaties defined on internode connections"""
+	def getProperty(self, name):
+		""" returns the list of the property with the required name"""
 
 		if (hasattr(self.morph,name)):
 			prop = getattr(self.morph, name)
@@ -1025,31 +1024,18 @@ class Robot(object):
 			raise AttributeError('The robot has no such property ('+ name + ')')
 			prop = None
 
-		if prop.size == self.morph.noNodes ** 2:
-			# Links property
-			#print "Link " + str(prop.size)
-			#print utils.connections2Array(prop,self.morph.connections)
-			return utils.connections2Array(prop,self.morph.connections)
-
-		if prop.size == self.morph.noNodes:
-			# Node property
-			#print 'Node '
-			return
+		if name.find("base_") == -1:
+			return utils.connections2List(prop,self.morph.connections)
 
 		else:
-			# Homogeneous property
-			#print "Homogeneous" + str(prop)
-			return
+			#print "heeeeeeeeeeerrrrrrrrrrrrrrrrrrrrrrrr", name, prop
+			return utils.number2List(prop)
 
-	def setProperty(self,name,array):
-		""" set a property with the required name by an array
-			(works only for properaties defined on internode connections"""
+	def setProperty(self, name, liste):
+		""" set a property with the required name by list"""
 		
-		array_size = array.size
-		#print array_size
-		prop = utils.array2Connections(array,self.morph.connections)
+		prop = utils.list2Connections(liste, self.morph.connections)
 
-		#print array.shape
 		if(hasattr(self.morph, name)):
 			setattr(self.morph, name, prop)
 		elif (hasattr(self.control ,name)):
@@ -1075,14 +1061,14 @@ class Robot(object):
 
 		return self.state.copy()
 
-	def changeState(self,timeStep,V,A):
+	def changeState(self, timeStep, V, A):
 		""" Change the time and positions based on time derivatives """
 
 		posChange = timeStep * V
 		speedChange = A * timeStep
 		self.state.changeState(timeStep, posChange, speedChange, self.morph.environment.ground)
 
-	def changeStateVerlet(self, timeStep, V, Aold, noise = 0):
+	def changeStateVerlet(self, timeStep, V, Aold, noise=0, impulsenoise=None):
 
 		if noise is not 0:
 			shape = np.shape(V.matrix)
@@ -1094,6 +1080,10 @@ class Robot(object):
 			posChange *= posNoise
 		self.state.addPos(timeStep, posChange, self.morph.environment.ground)
 		Anew = self.computeAcceleration()
+
+		if impulsenoise is not None:
+			Anew = Anew + utils.SpaceList(impulsenoise)
+
 		# then Force calculation
 		# then Speed update
 		speedChange = timeStep * (Aold + Anew) /2
@@ -1123,7 +1113,7 @@ class Robot(object):
 
 		return self.state.pos.x, self.state.pos.y, self.morph.connections
 
-	def robot2matrix(self,paramlist):
+	def robot2liste(self, paramlist):
 		""" --- convert the requested robot parameters to a matrix ---
 		
 		-- parameters --
@@ -1135,10 +1125,10 @@ class Robot(object):
 			matrix of which the headers are given by paramlist
 		"""
 
-		matrix = np.zeros((len(paramlist),self.morph.getNoConnections()))
+		liste = []
 		for i in range(len(paramlist)):
-			matrix[i,:]=self.getProperty(paramlist[i])
-		return matrix
+			liste.append(self.getProperty(paramlist[i]))
+		return liste
 
 	def getNoConnections(self):
 
@@ -1148,6 +1138,21 @@ class Robot(object):
 
 		self.state = RobotState(0, self.morph)
 	
+	def list2robot(self, namelist, vallist, reset=True):
+		""" --- update the robot to a list of parameters together with a list of names and optionally reset state ---
+		-- parameters --
+		- namelist : list of Strings
+			strings with the correct names of the parameters
+		- vallist : list of values
+			matrix of which the headers are given by paramlist
+		"""
+
+		if reset:
+			self.reset()
+		for i in range(len(vallist)):
+			self.setProperty(namelist[i], vallist[i])
+		return self
+
 	def matrix2robot(self,paramlist,matrix, reset = True):
 		""" --- update the robot to a matrix of parameters together with a list of parameters and optionally reset state ---
 		

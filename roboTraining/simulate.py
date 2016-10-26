@@ -150,13 +150,14 @@ class SimulationEnvironment(object):
 	""" class with general Parameters for Simulations but not bound to a specific robot"""
 	param = ["timeStep", "simulationLength", "verlet", "refPower", "refDist"]
 
-	def  __init__(self,timeStep = 0.005, simulationLength=10000, plot = Plotter(), verlet = True, controlPlot = True, 
-		perfMetr = "dist", refDist = 0, refPower = 0):
+	def  __init__(self,timeStep = 0.005, simulationLength=10000, plot = Plotter(), verlet = True, noisy = False, \
+		controlPlot = True, perfMetr = "dist", refDist = 0, refPower = 0):
 		self.timeStep = timeStep  # time step size
 		self.plot = plot  # plotting
 		assert isinstance(simulationLength, int), "simulation length should be integer"
 		self.simulationLength = simulationLength # number of iterations
-		self.verlet = True;
+		self.verlet = verlet;
+		self.noisy = noisy;
 		self.controlPlot = controlPlot
 		self.perfMetr = perfMetr
 		if self.perfMetr == "powereff" or self.perfMetr == "powersat" or self.perfMetr == "distsat":
@@ -299,6 +300,55 @@ class NoisyVerletSimulation(VerletSimulation):
 		self.iterationNumber+=1
 		self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold, self.noise)
 		return self.Aold
+
+class NoisyImpulseVerletSimulation(VerletSimulation):
+	""" Simulate noise in Verlet Update steps """
+	def __init__(self, simulEnv, robot, noise=1, reset=False, impulserate=0.05, durationRate=100):
+
+		# Parent constructor
+		super(NoisyImpulseVerletSimulation, self).__init__(simulEnv, robot, reset=reset)
+
+		# Noise variables
+		self.noise = noise
+		self.noiseArr = None
+		self.durationRate = durationRate
+		self.nImpulse = self.simulEnv.simulationLength * impulserate
+		self.noiseTime = np.random.randint(0, self.simulEnv.simulationLength, self.nImpulse)
+		self.noiseIt = 0
+
+	def simulateStep(self):
+		self.process()
+		V = self.robot.getVelocity()
+		timeStep = self.simulEnv.timeStep
+		self.iterationNumber+=1
+
+		# If step is a noisy one:
+		if self.iterationNumber in self.noiseTime:
+
+			self.noiseIt = 1
+			# Estimate impulse noise as percentage of mean acceleration value
+			n_val = self.noise * np.mean(np.abs(self.Aold.getArray()))
+			x_noise = np.random.uniform(- n_val, n_val)
+			y_noise = np.random.uniform(- n_val, n_val)
+
+			# Select a random node
+			node_val = np.random.randint(0, self.Aold.getnoNodes())
+			self.noiseArr = np.zeros((2, self.Aold.getnoNodes()))
+			self.noiseArr[0][node_val] = x_noise
+			self.noiseArr[1][node_val] = y_noise
+			self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold, impulsenoise=self.noiseArr)
+
+		if self.noiseIt > 0:
+			if self.noiseIt >= self.durationRate:
+				self.noiseIt = 0
+			else:
+				self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold, impulsenoise=self.noiseArr)
+				self.noiseIt += 1
+				return self.Aold
+
+		if self.noiseIt == 0:
+			self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold)
+			return self.Aold
 
 class ReservoirSimulation (VerletSimulation):
 	""" perform reservoir computing on MSNs """

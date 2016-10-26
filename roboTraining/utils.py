@@ -54,6 +54,11 @@ def connections2Array(matrix, connections):
 	matrixArray = matrix[upperTriangle][connections[upperTriangle].astype(bool)]
 	return matrixArray
 
+def connections2List(matrix, connections):
+	""" IIdem as connection to array but place it in a python list"""
+	liste = list(connections2Array(matrix, connections))
+	return liste
+
 def array2Connections(array, connections):
 	""" Reconstruct the sparse matrix, whose parameter values reside in array
 
@@ -72,6 +77,59 @@ def array2Connections(array, connections):
 	matrix[upperTriangle] = longArray
 	matrix += matrix.T
 	return matrix
+
+def list2Connections(liste, connections):
+	""" Reconstruct the sparse matrix, whose parameter values reside in a liste
+
+	:parameters:
+		- liste: list
+			contains the non-zero values of A
+		- connections: matrix
+			indicates the non-zero elements of A
+		- noNodes: int
+			indicates the number of nodes in the morphology
+	"""
+
+	listLen = len(liste)
+	assert listLen > 0, "the parameter list cannot be converted to a connections matrix if empty"
+	noLinks = np.count_nonzero(connections != 0) / 2
+	noNodes = connections.shape
+
+	if listLen == noLinks:
+		# Links property
+		#print "Link reconstruction " + str(listLen)
+		return array2Connections(np.array(liste), connections)
+
+	else:
+		# Homogeneous property
+		# print "Homogeneous reconstruction " + str(listLen)
+		return array2Connections(number2Array(liste[0], noLinks), connections)
+
+
+def number2Array(val, length):
+	""" Contruct an homogeneous parameters array from a single value
+	:parameters:
+		- val: float
+			the value to put in the array
+		- length: int
+			the length of the reconstructed value
+
+		An example can be found at _test_array_to_connections()
+	"""
+	l = []
+
+	for i in range(length):
+		l.append(val)
+
+	return np.array(l)
+
+
+def number2List(mat):
+	""" Convert a matrix with one unique number to a list of one number
+	"""
+	liste = []
+	liste.append(float(mat[0][0]))
+	return liste
 
 def list2PosMatrix(liste):
 	""" Reconstruct the position matrix, whose parameter values reside in the list
@@ -387,7 +445,6 @@ class SpaceList(object):
 				pos.matrix[1,i]  =0 
 				speed.matrix[:,i] = 0 
 
-
 class Plot(object):
 	@staticmethod
 	def initPlot(proj=None):
@@ -467,6 +524,9 @@ class Plot(object):
 		if legend:
 			if legendLocation == 'upper center':
 				bbox1 = 0.5
+				bbox2 = 1
+			elif legendLocation == 'upper right':
+				bbox1 = 1
 				bbox2 = 1
 			elif legendLocation == 'lower center':
 				bbox1 = 0.5
