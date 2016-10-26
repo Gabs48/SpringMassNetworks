@@ -86,7 +86,7 @@ if __name__ == "__main__":
 				index = i * size + rank
 				if index < len(arg_list):
 					time += float(simTime) / 20 * (1100 * arg_list[index][0] + 3000) / 3600
-			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
+			print(" == Running " +  str(len(arg_list)) + " nodes experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
 				"{:.2f} hours == \n".format(time))
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 			arg_list = createKMVal()
 			fileName = "Machine-" + str(rank)
 			n_iteration = int(math.ceil(len(arg_list)/float(size)))
-			print(" == Running " +  str(len(arg_list)) + " experiments on " + str(size) + \
+			print(" == Running " +  str(len(arg_list)) + " KM experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
 				"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
 
@@ -197,7 +197,7 @@ if __name__ == "__main__":
 			arg_list = createOmegaVal()
 			fileName = "Machine-" + str(rank)
 			n_iteration = int(math.ceil(len(arg_list)/float(size)))
-			print(" == Running " +  str(len(arg_list)) + " Noisy experiments on " + str(size) + \
+			print(" == Running " +  str(len(arg_list)) + " omega experiments on " + str(size) + \
 				" processors: " + str(n_iteration) + " optimizations expected in approximately " + \
 				"{:.2f} hours == \n".format(float(simTime) / 20 * trainingIt * n_iteration / 3600))
 
@@ -209,7 +209,8 @@ if __name__ == "__main__":
 						" -- Experiment " + str(index+1) + " with omega=" + str(arg_list[index][0]) + \
 						" and n_nodes=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Omega", omega_=arg_list[index][0],\
-					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereff", noNodes_=arg_list[index][1])
+					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereff", noNodes_=arg_list[index][1], \
+					mass_=float(20)/arg_list[index][1], maxIter_=train_it_index, maxSpring_=1000)
 					e.run()
 
 

@@ -199,7 +199,7 @@ def createOmegaVal():
 	""" Return a 2D list of omega values"""
 	
 	liste = []
-	nodes =  [3, 5, 7, 12, 20]
+	nodes =  [3, 7, 20]
 	freq =  np.linspace(0.5, 5, num=10)
 
 	for f in freq:
