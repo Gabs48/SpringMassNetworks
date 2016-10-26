@@ -313,7 +313,7 @@ class NoisyImpulseVerletSimulation(VerletSimulation):
 		self.noiseArr = None
 		self.durationRate = durationRate
 		self.nImpulse = self.simulEnv.simulationLength * impulserate
-		self.noiseTime = np.random.randint(0, self.simulEnv.simulationLength, self.nImpulse)
+		self.noiseTime = np.random.randint(0, self.simulEnv.simulationLength, int(np.floor(self.nImpulse)))
 		self.noiseIt = 0
 
 	def simulateStep(self):
