@@ -105,6 +105,12 @@ def list2Connections(liste, connections):
 		# print "Homogeneous reconstruction " + str(listLen)
 		return array2Connections(number2Array(liste[0], noLinks), connections)
 
+def array2ModFactor(array, connections):
+	""" Reconstruct the Modulation factor matrix from the links value"""
+
+	matrix = array2Connections(array, connections)
+	matrix[np.where(matrix == 0)] = 1
+	return matrix
 
 def number2Array(val, length):
 	""" Contruct an homogeneous parameters array from a single value

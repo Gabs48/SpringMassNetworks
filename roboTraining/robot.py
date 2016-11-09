@@ -900,7 +900,8 @@ class ClosedLoopSineControl(SineControl):
 
 		# If open-loop mode
 		if self.CL == False:
-			return super(ClosedLoopSineControl, self).modulationFactorTime(time)
+			modFactor = super(ClosedLoopSineControl, self).modulationFactorTime(time)
+			return modFactor
 
 		# If closed-loop mode
 		else:

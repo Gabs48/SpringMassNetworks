@@ -2,13 +2,14 @@ from collections import deque
 import itertools
 import numpy as np
 import matplotlib
+from matplotlib.mlab import *
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import os
 from robot import Robot
-from utils import SpaceList, Plot, LinearMap, NeuralNetwork, num2str, mkdir_p, connections2Array, array2Connections
+from utils import *
 import sys
 
 class Plotter(object):
@@ -574,7 +575,7 @@ class TrainingSimulation(VerletSimulation):
 			self.yTrained = np.vstack((self.yTrained, y_est))
 
 		# Pass the signal estimation to the controller to close the loop
-		stepInput = array2Connections(y_est, self.robot.morph.connections)
+		stepInput = array2ModFactor(y_est, self.robot.morph.connections)
 		self.robot.control.setStepInput(stepInput)
 
 	def process(self):
@@ -608,7 +609,8 @@ class TrainingSimulation(VerletSimulation):
 			#print "5. End of simulation. It: " + str(it)
 			self.runStep()
 			if self.trainingPlot:
-				self.plot()
+				self.plotLimitCycle()
+				self.plot(6000)
 
 	def mse(self, arr1, arr2):
 		""" Compute MSE between two matrices """
@@ -626,16 +628,26 @@ class TrainingSimulation(VerletSimulation):
 
 		return 1 - (rmse / (max_val - min_val))
 
-	def plot(self, n=None, show=False, save=True):
-		""" Print the driving and trained signals as a fct of time in a file"""
+	def _numPoints(self, n):
+		"""Give the number of points to plot in each phase when using n points"""
 
-		# Compute number of points to display
+		# Compute number of points of each phase
 		if not n or n > self.simulEnv.simulationLength:
 			n = self.simulEnv.simulationLength
+		n_tot = self.simulEnv.simulationLength
 		n_trans = self.transLength
+		n_train = self.trainLength
 		n_run = self.runLength
 		if n_run > n:
 			n_run = n
+
+		return [n_trans, n_train, n_run, n_tot, n]
+
+	def plot(self, n=None, show=False, save=True):
+		""" Print the driving and trained signals as a fct of time in a file"""
+
+		[n_trans, n_train, n_run, n_tot, n] = self._numPoints(n)
+		print [n_trans, n_train, n_run, n_tot, n]
 
 		# Some arrays init
 		nrmse = 0
@@ -658,11 +670,13 @@ class TrainingSimulation(VerletSimulation):
 
 			plt.plot(self.timeArray[-n:], self.yTraining[-n:, i] ,"r--", label="Training signal")
 			plt.plot(self.timeArray[-n:], np.zeros(n) ,"k-")
-			plt.plot(self.timeArray[n_trans+1:n-n_run], self.yTrained[1:n-n_run-n_trans, i] ,"y-", label="Trained sig (train)")
+			if n < len(self.yTrained[:,i]):
+				plt.plot(self.timeArray[n_tot-n:n_tot-n_run], self.yTrained[n_train-n:n_train-n_run,i] ,"y-", label="Trained sig (train)")
+			else:
+				plt.plot(self.timeArray[n_trans+1:n-n_run], self.yTrained[1:n-n_run-n_trans, i] ,"y-", label="Trained sig (train)")
 			if n_run != 0:
-				plt.plot(self.timeArray[-n_run:], self.yTrained[-n_run:, i] ,"b-", label="Trained sig (run)")
+				plt.plot(self.timeArray[-n_run-1:], self.yTrained[-n_run-1:, i] ,"b-", label="Trained sig (run)")
 				#plt.plot(self.timeArray[-n_run:], y_err[-n_run:] ,"g-", label="Error signal")
-
 
 			plt.title("Spring control force " + str(i+1) + ". Maximum error =  {:.2f} %".format(100 * np.max(y_err)) + \
 				". NRMSE = {:.2f}".format(nrmse))
@@ -686,9 +700,45 @@ class TrainingSimulation(VerletSimulation):
 		if save: plt.savefig(self.outputFolder + "/" + self.outputFilename + "_w_hist.png", format='png', dpi=300)
 		plt.close()
 
+	def plotLimitCycle(self, n=None, show=False, save=True):
+		"""Plot the limit cycle of x_training and y_trained"""
+
+		[n_trans, n_train, n_run, n_tot, n] = self._numPoints(n)
+		gap = 2
+		window = int(np.ceil((n-n_run-n_trans-1)/gap))
+
+		vec = self.xTraining.T
+		if vec.shape[0] > vec.shape[1]:
+			res = PCA(vec)
+			pc1 = res.Y[:,0]
+			pc2 = res.Y[:,1]
+		else:
+			pc1 = vec[:,0]
+			pc2 = vec[:,1]
+
+		fig, ax = Plot.initPlot()#proj="3d")
+		for j in xrange(1, window):
+			ax.plot(pc1[j*gap:(j+1)*gap+1], pc2[j*gap:(j+1)*gap+1], \
+				#self.timeArray[n_trans+1+j*gap:n_trans+1+(j+1)*gap+1], \
+				c=plt.cm.winter(1.*j/window), linewidth=1.2, label="PCA trajectory")
+		ax.set_xlabel('PC 1')
+		ax.set_ylabel('PC 2')
+		#ax.set_zlabel('Time')
+		#ax.view_init(30, 60)
+		if show: plt.show()
+		if save: plt.savefig(self.outputFolder + "/" + self.outputFilename + "_lc.png", format='png', dpi=300)
+		plt.close()
+
+		return
+
 class ForceTrainingSimulation(TrainingSimulation):
 	""" Extend the TrainingSimulation class to use FORCE online learning """
 
+	## Parameters to discuss:
+	# Beta and alpha
+	# closing the loop completely
+	# open loop previous to training
+	# Memory of previous accelerations
 	def __init__(self, simulEnv, robot, transPhase=0.2, trainPhase=0.6, trainingPlot=True, \
 		alpha=1, beta=0.1, openPhase=0.1, signTime=None, wDistPlot=True, outputFilename="sinusoid", \
 		outputFolder="RC", printPhase=True):
@@ -724,11 +774,47 @@ class ForceTrainingSimulation(TrainingSimulation):
 		self.error = None
 		self.yTrained = np.array([])
 
+	def runStep(self):
+		""" Run the neuron for a given step """
+
+		# Get input vector
+		x_it = self.Aold.getArray().T
+		if not self.inputs:
+			raise('Error: No trianing before running')
+		self.inputs.pop(0)
+		self.inputs.append(x_it)
+
+		x = np.mat(self.inputs[0])
+		for i in range(self.hist-1):
+			if i < 3:
+				x = np.vstack((x, self.inputs[i]))
+			else:
+				if i%4 == 0:
+					x = np.vstack((x, self.inputs[i]))
+
+		# Compute new estimation
+		y_est = np.asarray(self.w_prev.T * x).T
+
+		# Store estimation in vector
+		if self.yTrained.size == 0:
+			self.yTrained = y_est
+		else:
+			self.yTrained = np.vstack((self.yTrained, y_est))
+
+		# Pass the signal estimation to the controller to close the loop
+		stepInput = array2ModFactor(y_est, self.robot.morph.connections)
+		self.robot.control.setStepInput(stepInput)
+
+		# Print
+		if self.iterationNumber == self.simulEnv.simulationLength - 1:
+			if self.printPhase:
+				self.printSim()
+
 	def trainStep(self):
 		""" Add training data for a given step """
 
 		# Get robot current state
-		x_it =  self.robot.getState().pos.getArray().T
+		x_it =  self.Aold.getArray().T
 
 		# If the inputs fifo hasen't been created, do it
 		if not self.inputs:
@@ -736,9 +822,15 @@ class ForceTrainingSimulation(TrainingSimulation):
 			for i in range(self.hist):
 				self.inputs.append(np.zeros((self.N, 1)))
 
-		# Update the inputs fifo
+		# Update the inputs fifo (TODO: useless if the whole xtraining is already savec below)
 		self.inputs.pop(0)
 		self.inputs.append(x_it)
+
+		# Fill the xTraining vector (usefull for plotting limit cycle)
+		if self.xTraining.size == 0:
+			self.xTraining = x_it
+		else:
+			self.xTraining = np.hstack((self.xTraining, x_it))
 		
 		# Get current learning algo inputs and supervized ouput
 		x = np.mat(self.inputs[0])
@@ -793,7 +885,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 			self.robot.control.closeLoop(self.closedLength, beta=self.beta)
 
 		# Pass the signal estimation to the controller to close the loop
-		stepInput = array2Connections(yTrained, self.robot.morph.connections)
+		stepInput = array2ModFactor(yTrained, self.robot.morph.connections)
 		self.robot.control.setStepInput(stepInput)
 
 		return
@@ -824,14 +916,6 @@ class ForceTrainingSimulation(TrainingSimulation):
 			file.write("------------------------------------------------\n")
 			file.write("Parameters: alpha=" + str(self.alpha) + "     beta=" + str(self.beta))
 			file.close()
-
-	def runStep(self):
-		""" Reimplement runStep to conclude with custom plot and prints """
-
-		super(ForceTrainingSimulation, self).runStep()
-		if self.iterationNumber == self.simulEnv.simulationLength - 1:
-			if self.printPhase:
-				self.printSim()
 
 	def train(self):
 		""" Nothing to do here as FORCE is an online method """

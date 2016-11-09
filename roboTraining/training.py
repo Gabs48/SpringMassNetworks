@@ -81,6 +81,7 @@ class TrainingScheme(object):
 		with open(fileName, 'r') as csvfile:
 			tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
 			
+			# CSV File version 1
 			ii = 0
 			mult = n_param + 2
 			for i in range(mult * index + 2, mult * index + mult) :
@@ -93,6 +94,30 @@ class TrainingScheme(object):
 				ii += 1
 
 		return matrix
+
+	def loadCSV2List(self, fileName, index, rank):
+		"""Load the training parameters from a config file and its index"""
+
+		with open(fileName, 'r') as csvfile:
+			tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
+			
+			### CSV File version 2
+			mult = len(rank) + 1
+			row = [0] * len(rank)
+			for j in range(mult * index + 1, mult * index + mult) :
+				if j%mult == 1:
+					row[rank[j%mult-1]] = tab[j][2:]
+				if j%mult in range(2, mult):
+					row[rank[j%mult-1]] = tab[j][2:]
+				if j%mult == 0 and j != 0:
+					row_flat = reduce(lambda x,y: x+y, row)
+					row_float = list(map(float, row_flat))
+					params.append(row_float)
+
+			row_flat = reduce(lambda x,y: x+y, row)
+			row_float = list(map(float, row_flat))
+
+			return row_float
 
 	def normalizedList2robot(self, liste, robot):
 		""" --- update the robot to a matrix of normalized parameters together with a list of parameters  ---
@@ -561,7 +586,7 @@ class CMATraining(Training):
 		
 		self.bestParameters = res[0]
 		self.optimalscore = self.resultTransform(res[1])
-		
+
 		return self.bestParameters, self.optimalscore, t_tot
 
 	def evaluateParam(self, liste):
