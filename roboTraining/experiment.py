@@ -17,10 +17,10 @@ import datetime
 class Experiment(object):
 	"""Class to perform standard experiments"""
 
-	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
-		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=5000, omega_=2*np.pi*2, \
+	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=7, spring_=100, noNeighbours_=3, plot_=False, \
+		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=10000, omega_=2*np.pi*2, \
 		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=3600, refDist_=100, maxSpring_=200, \
-		noisy_=False):
+		noisy_=False, trainOmega_=True):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
@@ -44,31 +44,34 @@ class Experiment(object):
 		self.refPower = refPower_
 		self.maxSpring = maxSpring_
 		self.noisy = noisy_
+		self.trainOmega = trainOmega_
 
 	def run(self):
 		"""Run the experiment"""
 
-		# Init environment
+		# Init (environment, morphology, controller, simulator)
 		env = HardEnvironment()
 		morph = SpringMorphology(mass=self.mass, noNodes=self.noNodes, spring=self.spring, \
 			noNeighbours=self.noNeighbours, environment=env)
-		control = SineControl(morph)#, omega=self.omega)
+		if self.trainOmega:
+			control = SineControl(morph)
+		else:
+			control = SineControl(morph, omega=self.omega)
 		robot = Robot(morph, control)
-
 		plotter = Plotter(plot=False);
 		simulenv = SimulationEnvironment(timeStep=self.simTimeStep, simulationLength=int(self.simTime/self.simTimeStep), \
 		plot=plotter, perfMetr=self.perfMetr, controlPlot=self.controlPlot, refDist=self.refDist, refPower=self.refPower, \
 		noisy = self.noisy)
 
+		# Append training variables
 		trainscheme = TrainingScheme()
-		#trainscheme.createTrainVariable("mass", 0, 1)
-		#trainscheme.createTrainVariable("omega", 0, self.omega)
-		trainscheme.createTrainVariable("base_omega", 0, self.omega)
+		if self.trainOmega:
+			trainscheme.createTrainVariable("base_omega", 0, self.omega)
 		trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
-		##trainscheme.createTrainVariable("restLength", np.min(morph.restLength[morph.restLength>0]), np.max(morph.restLength))
 		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
 		trainscheme.createTrainVariable("spring", 0, self.maxSpring)
 
+		# Choose optimization type
 		saver = Save(None, self.fileName, self.folderName)
 		if self.optMethod == "CMA":
 			train = CMATraining(trainscheme, robot, simulenv, saver=saver, maxIter=self.maxIter)
@@ -79,6 +82,7 @@ class Experiment(object):
 			train = RandomTraining(trainscheme, robot, simulenv, saver=saver, noInstances=self.maxIter)
 
 		# Perform optimization
+		print("\n == Experiment starting with the following parameters == \n" + str(self.__dict__) + "\n")
 		param, score, t_tot = train.run() 
 		bestRobot = trainscheme.normalizedList2robot(train.bestParameters, robot)
 
@@ -92,7 +96,7 @@ class Experiment(object):
 		print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 			" -- Best score (" + self.perfMetr + "): {:.4f}".format(score)  + "\n")
 		train.save(savePlot=False)
-		print(" == Experiment finished with the following parameters == \n\n  " + str(self.__dict__) + "\n")
+		print(" == Experiment finished with the following parameters == \n\n" + str(self.__dict__) + "\n")
 
 def createParetoVal(pool_n=1):
 	"""Return a 2D list of Amplitude and Omega couple for drawing a pareto curve"""
@@ -141,7 +145,10 @@ def createKMVal():
 def createNodesVal():
 	"""Return a list of nodes number"""
 
-	nodes = range(3, 41)
+	nodes = []
+	# Average with 5 values
+	for i in range(1, 5):
+		nodes.extend(range(3, 27))
 	liste = []
 
 	for n in nodes:
@@ -168,8 +175,11 @@ def createRefPowerParetoVal():
 
 	liste = []
 	# power =  np.linspace(100, 20000, num=10).tolist()
-	power =  np.array([100, 500, 1000, 2500, 5000, 7500, 10000, 12500, 15000, 17500])
-	freq = [1, 2, 3, 4, 5]
+	power =  np.array([100, 500, 1000, 2500, 5000, 7500, 10000, 12500, 15000, 17500]).tolist()
+	freq =  []
+	# Average with 5 values
+	for i in range(1, 5):
+		freq.extend(range(1, 5))
 
 	for f in freq:
 		for p in power:
@@ -182,7 +192,10 @@ def createRefDistParetoVal():
 
 	liste = []
 	dist =  np.linspace(10, 300, num=10).tolist()
-	freq = [1, 2, 3, 4, 5]
+	freq =  []
+	# Average with 5 values
+	for i in range(1, 5):
+		freq.extend(range(1, 5))
 
 	for f in freq:
 		for d in dist:
@@ -201,8 +214,11 @@ def createOmegaVal():
 	""" Return a 2D list of omega values"""
 	
 	liste = []
-	nodes =  [3, 7, 20]
-	freq =  np.linspace(0.5, 5, num=10)
+	nodes =  [3, 5, 7]
+	freq =  []
+	# Average with 5 values
+	for i in range(1, 5):
+		freq.extend(np.linspace(0.5, 5, num=10).tolist())
 
 	for f in freq:
 		for n in nodes:

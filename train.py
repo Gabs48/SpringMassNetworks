@@ -5,7 +5,7 @@ from roboTraining.experiment import *
 if __name__ == "__main__":
 	"""Start the experiment function with different parameters"""
 
-	trainingIt = 30000
+	trainingIt = 10000
 	simTime = 10
 
 	# Get MPI info
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 						" -- Experiment " + str(index+1) + " with number of nodes=" + \
 						str(arg_list[index][0]) + " and " + str(train_it_index) + " iterations")
-					e = Experiment(fileName_=fileName, folderName_="Nodes", noNodes_=arg_list[index][0],\
+					e = Experiment(fileName_=fileName, folderName_="Nodes", noNodes_=arg_list[index][0], noisy_=True, \
 					 mass_=float(20)/arg_list[index][0], simTime_=simTime, maxIter_=train_it_index, maxSpring_=1000)
 					e.run()
 
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 						" -- Experiment " + str(index+1) + " with Pref=" + str(arg_list[index][0]) + \
 						" and Omega=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Pareto_power", refPower_=arg_list[index][0],\
-					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="powersat")
+					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="powersat", noisy_=True)
 					e.run()
 
 		#  Different reference for energy and distance scores
@@ -187,7 +187,7 @@ if __name__ == "__main__":
 						" -- Experiment " + str(index+1) + " with Dref=" + str(arg_list[index][0]) + \
 						" and Omega=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Pareto_dist", refDist_=arg_list[index][0],\
-					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="distsat")
+					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="distsat", noisy_=True)
 					e.run()
 
 		#  Different reference for energy and distance scores
@@ -205,12 +205,18 @@ if __name__ == "__main__":
 			for i in range(n_iteration):
 				index = i * size + rank
 				if index < len(arg_list):
+					if arg_list[index][1]==3:
+						trainingIt = 6000
+					elif arg_list[index][1]==5:
+						trainingIt = 8000
+					elif arg_list[index][1]==7:
+						trainingIt = 10000
 					print("-- " + machine + " (" + str(rank+1) + "/" + str(size) + ")" + \
 						" -- Experiment " + str(index+1) + " with omega=" + str(arg_list[index][0]) + \
 						" and n_nodes=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Omega", omega_=arg_list[index][0],\
 					simTime_=simTime, maxIter_=trainingIt, perfMetr_="powereff", noNodes_=arg_list[index][1], \
-					mass_=float(20)/arg_list[index][1], maxSpring_=1000)
+					mass_=float(20)/arg_list[index][1], maxSpring_=1000, noisy_=True, trainOmega_=False)
 					e.run()
 		
 		# Noisy otpimization with the same argument list
