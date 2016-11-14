@@ -31,6 +31,7 @@ class Analysis(object):
 		self.filenames = []
 		self.parameters = []
 		self.trainable = []
+		self.params_names = []
 		self.opt_type = []
 		self.sim_time = []
 		self.omega = []
@@ -92,32 +93,38 @@ class Analysis(object):
 				tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
 			
 				params = []
+				names = []
 
-				## Can read params.csv version 1
-				mult = len(self.trainable[i]) + 2
-				for j in range(len(tab)) :
-					if j%mult == 2:
-						row = tab[j]
-					if j%mult in range(3, mult-1):
-						row.extend(tab[j])
-					if j%mult == 0 and j != 0:
-						row_float = list(map(float, row))
-						params.append(row_float)
-
-				# ### Can read params.csv version 2
-				# mult = len(self.trainable[i]) + 1
+				# ## Can read params.csv version 1
+				# mult = len(self.trainable[i]) + 2
 				# for j in range(len(tab)) :
-				# 	if j%mult == 1:
-				# 		row = tab[j][2:]
-				# 	if j%mult in range(2, mult):
-				# 		row.extend(tab[j][2:])
+				# 	if j%mult == 2:
+				# 		row = tab[j]
+				# 	if j%mult in range(3, mult-1):
+				# 		row.extend(tab[j])
 				# 	if j%mult == 0 and j != 0:
 				# 		row_float = list(map(float, row))
 				# 		params.append(row_float)
 
+				### Can read params.csv version 2
+				mult = len(self.trainable[i]) + 1
+				for j in range(len(tab)) :
+					if j%mult == 1:
+						if j == 1:
+							names.append(str(tab[j][1]))
+						row = tab[j][2:]
+					if j%mult in range(2, mult):
+						if j in range(2, mult):
+							names.append(str(tab[j][1]))
+						row.extend(tab[j][2:])
+					if j%mult == 0 and j != 0:
+						row_float = list(map(float, row))
+						params.append(row_float)
+
 
 				row_float = list(map(float, row))
 				params.append(row_float) # last iteration
+				self.params_names.append(names)
 				self.parameters.append(params)
 				print(" -- Parameters of " + str(i+1) + "/" + str(len(self.filenames)) + " loaded -- ")
 
@@ -688,8 +695,8 @@ class Analysis(object):
 
 		p = []
 		for i, row in enumerate(self.parameters[index]):
-			p.append(row[paramIndex])
-
+			if i != 0:
+				p.append(row[paramIndex])
 		plt.plot(self.x[index], p, color='b')
 		if title != None:
 			plt.title(title)
@@ -777,7 +784,6 @@ class Analysis(object):
 			self.plot_param(index=0, paramIndex=i, filename=filename + "_" + str(i), show=show, save=save)
 			i += 1
 
-
 	def get_best_ind(self, index=None):
 		"""Return best individu score, file index and place index"""
 
@@ -812,7 +818,7 @@ class Analysis(object):
 			return max_t, max_index1, max_index2
 
 	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, movie=True,
-		transPhase=0.2, trainingPhase=0.6, openPhase=0.2, alpha=1, beta=0.9, simNoise=0, paramNoise=0):
+		transPhase=0, trainingPhase=0.7, openPhase=0.35, alpha=0.001, beta=1, simNoise=0, paramNoise=0):
 		"""Render a simulation movie for a given individu"""
 
 		# Init variables
@@ -840,19 +846,38 @@ class Analysis(object):
 		trainscheme = TrainingScheme()
 		for param in self.trainable[index1]:
 			trainscheme.createTrainVariable(param["name"], param["min"], param["max"])
-		paramMatrix = trainscheme.loadCSV(parameterFilename, index2, len(self.trainable[index1]))
-		if paramNoise != 0:
-			paramMatrix = paramMatrix + np.random.standard_normal(paramMatrix.shape) * paramNoise
-			l_vals = paramMatrix < 0.0
-			h_vals = paramMatrix > 1.0
-			paramMatrix[l_vals] = 0.0
-			paramMatrix[h_vals] = 1.0
-		trainscheme.normalizedMatrix2robot(paramMatrix, robot)
+		
+
+		# File vs 1
+		# for param in self.trainable[index1]:
+		# 	print param
+		# 	trainscheme.createTrainVariable(param["name"], param["min"], param["max"])
+		# paramMatrix = trainscheme.loadCSV(parameterFilename, index2, len(self.trainable[index1]))
+		# if paramNoise != 0:
+		# 	paramMatrix = paramMatrix + np.random.standard_normal(paramMatrix.shape) * paramNoise
+		# 	l_vals = paramMatrix < 0.0
+		# 	h_vals = paramMatrix > 1.0
+		# 	paramMatrix[l_vals] = 0.0
+		# 	paramMatrix[h_vals] = 1.0
+		# trainscheme.normalizedMatrix2robot(paramMatrix, robot)
+
+		# File vs 2
+		if not self.parameters:
+			self._load_parameters()
+		# Reorganise the parameters in the rigt order
+		rank = []
+		for param in self.params_names[index1]:
+			for i, p in enumerate(self.trainable[index1]):
+				if param == p["name"]:
+					rank.append(i)
+					break;
+		paramList = trainscheme.loadCSV2List(parameterFilename, index2, rank)
+		trainscheme.normalizedList2robot(paramList, robot)
 
 		# Create the simulation
 		plotter = Plotter(movie=movie, plot=movie, movieName=simName, plotCycle = 6)
 		simulEnv = SimulationEnvironment(timeStep=self.ts[index1], simulationLength=sl, plot=plotter, \
-			perfMetr="dist", controlPlot=False)
+			perfMetr="powereff", controlPlot=False, refPower=self.ref_pow[index1], refDist=self.ref_dist[index1])
 
 		# Do the simulation
 		if rc:
@@ -861,6 +886,11 @@ class Analysis(object):
 				alpha=alpha, beta=beta, outputFilename="training", \
 				outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
 				str(openPhase) + "_" + str(alpha) + "_" + str(beta))
+			# simul = TrainingSimulation(simulEnv, robot, \
+			# 	transPhase=transPhase, trainPhase=trainingPhase, \
+			# 	outputFilename="training", \
+			# 	outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
+			# 	str(openPhase) + "_" + str(alpha) + "_" + str(beta))
 		else:
 			if simNoise !=  0:
 				simul = NoisyImpulseVerletSimulation(simulEnv, robot, noise=simNoise)
@@ -869,7 +899,7 @@ class Analysis(object):
 		[score, power, distance] = simul.runSimulation();
 
 		print(" -- Simulation terminated with score {:.4f}".format(score) + \
-			". Distance: " + str(distance) + " and Power: " + str(power) + " -- ")
+			". Distance:  {:.2f}".format(distance) + " and Power:  {:.2f}".format(power) + " -- ")
 		if movie:
 			print(" -- Video saved in file " + simName + ".mp4 --")
 
