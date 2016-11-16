@@ -88,6 +88,7 @@ class Analysis(object):
 	def _load_parameters(self):
 		"""Load the training parameters from all parameters files"""
 
+		print "here"
 		for i, f in enumerate(self.filenames):
 			with open(f.replace("score", "parameter"), 'r') as csvfile:
 				tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
@@ -631,7 +632,7 @@ class Analysis(object):
 
 		print(" -- Printing noise simulation graph for file " + self.filenames[index])
 
-		noiseArr = np.logspace(-8, 0, num=nPoints)
+		noiseArr = np.logspace(-8, -1, num=nPoints)
 		if window%2 == 0:
 			noiseArr_av = noiseArr[window/2:nPoints-window/2+1]
 		else:
@@ -643,7 +644,7 @@ class Analysis(object):
 			noise = noiseArr[i]
 			print(" -- Simulation " + str(i+1) + "/" + str(nPoints) + " : simulation noise value = " + str(noise) + " -- ")
 			bestIndex = np.argmax(self.y[index])
-			[distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, simNoise=noise)
+			[score, distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, simNoise=noise)
 
 		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
 		fig, ax = Plot.initPlot()
@@ -673,7 +674,7 @@ class Analysis(object):
 			noise = noiseArr[i]
 			print(" -- Simulation " + str(i+1) + "/" + str(nPoints) + " : parameters noise value = " + str(noise) + " -- ")
 			bestIndex = np.argmax(self.y[index])
-			[distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, paramNoise=noise)
+			[score, distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, paramNoise=noise)
 
 		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
 		fig, ax = Plot.initPlot()
@@ -817,8 +818,9 @@ class Analysis(object):
 
 			return max_t, max_index1, max_index2
 
-	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, movie=True,
-		transPhase=0, trainingPhase=0.7, openPhase=0.35, alpha=0.001, beta=1, simNoise=0, paramNoise=0):
+	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, \
+		movie=True, transPhase=0, trainingPhase=0.7, openPhase=0.35, alpha=0.001, beta=1, \
+		simNoise=0, paramNoise=0, noiseType="rand"):
 		"""Render a simulation movie for a given individu"""
 
 		# Init variables
@@ -893,7 +895,10 @@ class Analysis(object):
 			# 	str(openPhase) + "_" + str(alpha) + "_" + str(beta))
 		else:
 			if simNoise !=  0:
-				simul = NoisyImpulseVerletSimulation(simulEnv, robot, noise=simNoise)
+				if noiseType == "impulse":
+					simul = NoisyImpulseVerletSimulation(simulEnv, robot, noise=simNoise)
+				elif noiseType == "rand":
+					simul = NoisyVerletSimulation(simulEnv, robot, noise=simNoise)
 			else:
 				simul = VerletSimulation(simulEnv, robot)
 		[score, power, distance] = simul.runSimulation();
@@ -903,7 +908,7 @@ class Analysis(object):
 		if movie:
 			print(" -- Video saved in file " + simName + ".mp4 --")
 
-		return [simul.getDistance(), robot.getPower()]
+		return [score, simul.getDistance(), robot.getPower()]
 
 	## ------------------- Specific Simulation types ---------------------------
 
@@ -1016,7 +1021,7 @@ class Analysis(object):
 		if sensibility:
 			print "Il faut faire ca!"
 
-	def nodes(self, filename="results_nodes", show=False, save=True):
+	def nodes(self, filename="results_nodes", noiseAnalysis=False, videoAnalysis=False, show=False, save=True):
 		"""Perform specific analysis for a nodes batch"""
 
 		folder = "nodes_pic/"
@@ -1053,24 +1058,38 @@ class Analysis(object):
 					duplicate = True
 
 			if duplicate == False:
-				dist.append([self.y_d[best[1]][best[2]]])
-				power.append([self.y_p[best[1]][best[2]]])
-				score.append([best[0]])
+				s, p, d = self.simulate_ind(best[1], best[2], simTime=10, movie=False)
+				dist.append([d])#self.y_d[best[1]][best[2]]])
+				power.append([p])#self.y_p[best[1]][best[2]]])
+				score.append([s])
 				nodes.append([it_nodes])
-				# # Create videos
-				# if it_nodes == 20:
-				# 	print " -- Producting simulation video with " + str(it_nodes) + " nodes --"
-				# 	self.simulate_ind(best[1], best[2], simTime=10, movie=True, rc=False, simName="Sim_" + \
-				# 		str(it_nodes))
+				if noiseAnalysis:
+					print self.filenames[best[1]]
+					self.plot_noise_sim(best[1], filename=folder + "noise_n_" + str(it_nodes),\
+						title="N = " + str(it_nodes), nPoints=30, window=3)
+					self.plot_gen(best[1], filename=folder + "gen_n_" + str(it_nodes), \
+						title="N = " + str(it_nodes))
+				if videoAnalysis:
+					# Create videos
+					if it_nodes == 20:
+						print " -- Producting simulation video with " + str(it_nodes) + " nodes --"
+						score,self.simulate_ind(best[1], best[2], simTime=10, movie=True, rc=False, simName="Sim_" + \
+							str(it_nodes))
 
 
 		# Average points with multiple values
 		n_av = 0
+		dist_std = np.zeros(len(dist))
+		power_std = np.zeros(len(power))
+		score_std = np.zeros(len(score))
 		for i in range(len(dist)):
-			n_av += len(dist[i])
-			dist[i] = sum(dist[i]) / len(dist[i])
-			power[i] = sum(power[i]) / len(power[i])
-			score[i] = sum(score[i]) / len(score[i])
+		 	n_av += len(dist[i])
+		 	dist_std[i] = np.std(np.array(dist[i]))
+		 	power_std[i] = np.std(np.array(power[i]))
+		 	score_std[i] = np.std(np.array(score[i]))
+		 	dist[i] = sum(dist[i]) / len(dist[i])
+		 	power[i] = sum(power[i]) / len(power[i])
+		 	score[i] = sum(score[i]) / len(score[i])
 			nodes[i] = sum(nodes[i]) / len(nodes[i])
 
 		if n_av != len(dist):
@@ -1078,11 +1097,14 @@ class Analysis(object):
 				num2str(float(n_av)/len(dist)) + " data sets for each --")
 
 		# Sort lists
-		nodes, dist, power, score = (list(t) for t in zip(*sorted(zip(nodes, dist, power, score))))
+		nodes, dist, power, score, dist_std, power_std, score_std = \
+			(list(t) for t in zip(*sorted(zip(nodes, dist, power, score, dist_std, power_std, score_std))))
 
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
-		ax.plot(nodes, dist, 'b.-', linewidth=1.5, label="Distance")
+		ax.errorbar(nodes[3:len(nodes)], dist[3:len(nodes)], \
+			yerr=dist_std[3:len(nodes)], fmt='.-', ecolor='r', \
+			linewidth=1.5, label="Distance")
 		plt.title("Distance evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
 			" optimizations with " + num2str(sim_time) + "s simulations")
 		Plot.configurePlot(fig, ax, 'Nodes number','Distance', legendLocation='lower right', size='small')
@@ -1092,7 +1114,9 @@ class Analysis(object):
 			plt.savefig(folder + filename + "_dist.png", format='png', dpi=300)
 
 		fig, ax = Plot.initPlot()
-		ax.plot(nodes, power, 'r.-', linewidth=1.5, label="Power")
+		ax.errorbar(nodes[3:len(nodes)], power[3:len(nodes)], \
+			yerr=power_std[3:len(nodes)], fmt='.-', ecolor='r', \
+			linewidth=1.5, label="Power") 
 		plt.title("Power evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
 			" optimizations with " + num2str(sim_time) + "s simulations")
 		Plot.configurePlot(fig, ax, 'Nodes number','Power', legendLocation='lower right', size='small')
@@ -1102,7 +1126,9 @@ class Analysis(object):
 			plt.savefig(folder + filename + "_power.png", format='png', dpi=300)
 
 		fig, ax = Plot.initPlot()
-		ax.plot(nodes, score, 'g.-', linewidth=1.5, label="Score")
+		ax.errorbar(nodes, score, \
+			yerr=score_std, fmt='.-', ecolor='r', \
+			linewidth=1.5, label="Score")
 		plt.title("Score evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
 			" optimizations with " + num2str(sim_time) + "s simulations")
 		Plot.configurePlot(fig, ax, 'Nodes number','Score', legendLocation='lower right', size='small')
@@ -1146,7 +1172,7 @@ class Analysis(object):
 			# If couple omega/ampli already existsn average with previous one
 			for j, om in enumerate(omega):
 				for k, no in enumerate(nodes):
-					if om == it_omega and no == it_nodes and j == k:
+					if om[0] == it_omega and no[0] == it_nodes and j == k:
 						dist[j].append(it_dist)
 						nodes[j].append(it_nodes)
 						omega[j].append(it_omega)
@@ -1173,14 +1199,15 @@ class Analysis(object):
 				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
 
 		# Sort lists
-		nodes, omega, dist = (list(t) for t in zip(*sorted(zip(nodes, omega, dist))))
+		nodes, omega, dist, dist_std = (list(t) for t in zip(*sorted(zip(nodes, omega, dist, dist_std))))
 		r_nodes = len(set(nodes))
 		n_nodes = len(nodes) / r_nodes
 
 		# Plot distance as a fct of power in a loglog graph for different omega values
 		fig, ax = Plot.initPlot()
 		for i in range(r_nodes):
-			ax.plot(np.array(omega[n_nodes*i:n_nodes*i+n_nodes]), np.array(dist[n_nodes*i:n_nodes*i+n_nodes]), \
+			ax.errorbar(np.array(omega[n_nodes*i:n_nodes*i+n_nodes]), np.array(dist[n_nodes*i:n_nodes*i+n_nodes]), \
+				yerr=np.array(dist_std[n_nodes*i:n_nodes*i+n_nodes]), fmt='.-', ecolor='r', \
 				linewidth=1.5, label="$N_{nodes} = $ " + \
 				num2str(nodes[i*n_nodes]))
 
@@ -1311,11 +1338,11 @@ class Analysis(object):
 			it_omega = self.omega[best[1]]
 			it_power = self.y_p[best[1]][best[2]]
 
-
 			# If reference distance already exists, average with previous values
 			for j, d in enumerate(d_ref):
 				for k, om in enumerate(omega):
-					if d[0] == it_d_ref and om == it_omega and j == k:
+					#print d[0], om, it_d_ref, it_omega
+					if d[0] == it_d_ref and om[0] == it_omega and j == k:
 						power[j].append(it_power)
 						d_ref[j].append(it_d_ref)
 						omega[j].append(it_omega)
@@ -1327,28 +1354,33 @@ class Analysis(object):
 				omega.append([it_omega])
 
 		# Average points with multiple values
-		n_av = 0
+		n_av = [0]
+		power_inv = []
+		power_std = []
 		for i in range(len(power)):
-			n_av += len(power[i])
-			power[i] = sum(power[i]) / len(power[i])
+			if  len(d_ref[i]) > 1:
+				n_av.append(len(d_ref[i]))
+			power_inv.append(list(map((lambda x: 1. / x), power[i])))
+			power_std.append(np.std(np.array(power_inv[i])))
+			power_inv[i] = sum(power_inv[i]) / len(power_inv[i])
 			d_ref[i] = sum(d_ref[i]) / len(d_ref[i])
 			omega[i] = sum(omega[i]) / len(omega[i])
 
-		if n_av != len(power):
-			print(" -- Averaging " + str(n_av) + " graph points with on average " + \
-				num2str(float(n_av)/len(power)) + " data sets for each --")
+		if len(n_av) != 0:
+			print(" -- Averaging " + str(len(n_av)) + " graph points with on average " + \
+				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
 
 		# Sort lists
-		omega, d_ref, power = (list(t) for t in zip(*sorted(zip(omega, d_ref, power))))
-		power_inv = list(map((lambda x: 1. / x), power))
+		omega, d_ref, power_inv, power_std = (list(t) for t in (zip(*sorted(zip(omega, d_ref, power_inv, power_std)))))
 		v_ref = list(map((lambda x: x / sim_time), d_ref))
 		n_omega = len(omega) / len(set(omega))
 
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
 		for i in range(len(set(omega))):
-			ax.plot(d_ref[n_omega*i:n_omega*i+n_omega], power_inv[n_omega*i:n_omega*i+n_omega], \
-				'.-', linewidth=1.5, label="$f = $ " + num2str(omega[n_omega*i]/2/np.pi) + " Hz")
+			ax.errorbar(d_ref[n_omega*i:n_omega*i+n_omega], power_inv[n_omega*i:n_omega*i+n_omega], \
+				yerr=np.array(power_std[n_omega*i:n_omega*i+n_omega]), fmt='.-', ecolor='r', \
+				linewidth=1.5, label="$f = $ " + num2str(omega[n_omega*i]/2/np.pi) + " Hz")
 
 		plt.title("Pareto curves power-speed with " + opt_type + \
 			" optimizations of " + num2str(sim_time) + "s simulations")
