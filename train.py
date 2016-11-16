@@ -165,7 +165,8 @@ if __name__ == "__main__":
 						" -- Experiment " + str(index+1) + " with Pref=" + str(arg_list[index][0]) + \
 						" and Omega=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Pareto_power", refPower_=arg_list[index][0],\
-					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="powersat", noisy_=True)
+					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="powersat", 
+					trainOmega_=False, noisy_=True)
 					e.run()
 
 		#  Different reference for energy and distance scores
@@ -187,7 +188,8 @@ if __name__ == "__main__":
 						" -- Experiment " + str(index+1) + " with Dref=" + str(arg_list[index][0]) + \
 						" and Omega=" + str(arg_list[index][1]))
 					e = Experiment(fileName_=fileName, folderName_="Pareto_dist", refDist_=arg_list[index][0],\
-					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="distsat", noisy_=True)
+					omega_=arg_list[index][1], simTime_=simTime, maxIter_=trainingIt, perfMetr_="distsat", \
+					trainOmega_=False, noisy_=True)
 					e.run()
 
 		#  Different reference for energy and distance scores
