@@ -1031,6 +1031,7 @@ class Analysis(object):
 		dist = []
 		power = []
 		score = []
+		score_test = []
 		sim_time = self.sim_time[0]
 		opt_type = self.opt_type[0]
 
@@ -1059,9 +1060,10 @@ class Analysis(object):
 
 			if duplicate == False:
 				s, p, d = self.simulate_ind(best[1], best[2], simTime=10, movie=False)
-				dist.append([d])#self.y_d[best[1]][best[2]]])
-				power.append([p])#self.y_p[best[1]][best[2]]])
-				score.append([s])
+				score_test.append([s])
+				dist.append([self.y_d[best[1]][best[2]]])
+				power.append([self.y_p[best[1]][best[2]]])
+				score.append([best[0]])
 				nodes.append([it_nodes])
 				if noiseAnalysis:
 					print self.filenames[best[1]]
@@ -1090,6 +1092,7 @@ class Analysis(object):
 		 	dist[i] = sum(dist[i]) / len(dist[i])
 		 	power[i] = sum(power[i]) / len(power[i])
 		 	score[i] = sum(score[i]) / len(score[i])
+		 	score_test[i] = sum(score_test[i]) / len(score_test[i])
 			nodes[i] = sum(nodes[i]) / len(nodes[i])
 
 		if n_av != len(dist):
@@ -1097,8 +1100,8 @@ class Analysis(object):
 				num2str(float(n_av)/len(dist)) + " data sets for each --")
 
 		# Sort lists
-		nodes, dist, power, score, dist_std, power_std, score_std = \
-			(list(t) for t in zip(*sorted(zip(nodes, dist, power, score, dist_std, power_std, score_std))))
+		nodes, dist, power, score, score_test, dist_std, power_std, score_std = \
+			(list(t) for t in zip(*sorted(zip(nodes, dist, power, score, score_test, dist_std, power_std, score_std))))
 
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
@@ -1136,6 +1139,17 @@ class Analysis(object):
 		if save:
 			print(" -- Print score evolution with nodes number in " + folder + filename + "_score.png --")
 			plt.savefig(folder + filename + "_score.png", format='png', dpi=300)
+
+		fig, ax = Plot.initPlot()
+		diff = np.abs(np.array(score) - np.array(score_test))
+		ax.plot(nodes, diff, '.-', linewidth=1.5, label="Robustness")
+		plt.title("Difference between noisy and flat score with nodes number for " + str(len(self.y[0])) + \
+			" iterations " + opt_type + " optimizations with " + num2str(sim_time) + "s simulations")
+		Plot.configurePlot(fig, ax, 'Nodes number','Score difference', legendLocation='lower right', size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print score differences with nodes number in " + folder + filename + "_score_diff.png --")
+			plt.savefig(folder + filename + "_score_diff.png", format='png', dpi=300)
 
 	def freq(self, filename="results_freq", show=False, save=True):
 		"""Perform specific analysis for a omega batch"""
