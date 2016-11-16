@@ -214,11 +214,11 @@ def createOmegaVal():
 	""" Return a 2D list of omega values"""
 	
 	liste = []
-	nodes =  [3, 5, 7]
+	nodes =  [5, 10, 15, 20]
 	freq =  []
 	# Average with 5 values
 	for i in range(1, 5):
-		freq.extend(np.linspace(0.5, 5, num=10).tolist())
+		freq.extend(np.logspace(0.2, 10, num=10).tolist())
 
 	for f in freq:
 		for n in nodes:
