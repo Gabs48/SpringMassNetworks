@@ -402,6 +402,12 @@ class Analysis(object):
 
 		return res
 
+	def _get_style_colors(self):
+		""" Return a arry with the current style colors """
+
+		cols = plt.rcParams['axes.prop_cycle'].by_key()['color']
+		return cols
+
 	def load(self):
 		"""Browse all folder and retrieve all scores. Then load configs and parameters"""
 
@@ -476,9 +482,9 @@ class Analysis(object):
 			for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
 				item.set_fontsize(17)
 
-			plt.plot(x, y_max ,"r-", label="Generation Max")
-			plt.plot(x, y_av, "g-", label="Generation Average")
-			plt.plot(x, y_min, "b-", label="Generation Min")
+			plt.plot(x, y_max, "r-", linewidth=0.5, label="Generation Max")
+			plt.plot(x, y_av, "g-", linewidth=0.5, label="Generation Average")
+			plt.plot(x, y_min, "b-", linewidth=0.5, label="Generation Min")
 			if title != None:
 				plt.title(title)
 			else:
