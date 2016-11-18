@@ -12,9 +12,9 @@ from matplotlib.mlab import *
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import uniform_filter
 import sys,os
-#plt.style.use('fivethirtyeight')
-#plt.rc('text', usetex=True)
-#plt.rc('font', family='serif')
+plt.style.use('fivethirtyeight')
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
 
 class Analysis(object):
 
@@ -88,7 +88,6 @@ class Analysis(object):
 	def _load_parameters(self):
 		"""Load the training parameters from all parameters files"""
 
-		print "here"
 		for i, f in enumerate(self.filenames):
 			with open(f.replace("score", "parameter"), 'r') as csvfile:
 				tab = list(csv.reader(csvfile, delimiter=';', quotechar='|'))
@@ -1084,15 +1083,18 @@ class Analysis(object):
 		dist_std = np.zeros(len(dist))
 		power_std = np.zeros(len(power))
 		score_std = np.zeros(len(score))
+		robust = (np.array(score) - np.array(score_test)).tolist()
+		robust_std = np.zeros(len(robust))
 		for i in range(len(dist)):
 		 	n_av += len(dist[i])
 		 	dist_std[i] = np.std(np.array(dist[i]))
 		 	power_std[i] = np.std(np.array(power[i]))
 		 	score_std[i] = np.std(np.array(score[i]))
+		 	robust_std[i] = np.std(np.array(robust[i]))
 		 	dist[i] = sum(dist[i]) / len(dist[i])
 		 	power[i] = sum(power[i]) / len(power[i])
 		 	score[i] = sum(score[i]) / len(score[i])
-		 	score_test[i] = sum(score_test[i]) / len(score_test[i])
+		 	robust[i] = sum(robust[i]) / len(robust[i])
 			nodes[i] = sum(nodes[i]) / len(nodes[i])
 
 		if n_av != len(dist):
@@ -1100,13 +1102,13 @@ class Analysis(object):
 				num2str(float(n_av)/len(dist)) + " data sets for each --")
 
 		# Sort lists
-		nodes, dist, power, score, score_test, dist_std, power_std, score_std = \
-			(list(t) for t in zip(*sorted(zip(nodes, dist, power, score, score_test, dist_std, power_std, score_std))))
+		nodes, dist, power, score, robust, dist_std, power_std, score_std, robust_std= \
+			(list(t) for t in zip(*sorted(zip(nodes, dist, power, score, robust, dist_std, power_std, score_std, robust_std))))
 
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
-		ax.errorbar(nodes[3:len(nodes)], dist[3:len(nodes)], \
-			yerr=dist_std[3:len(nodes)], fmt='.-', ecolor='r', \
+		ax.errorbar(nodes, dist, \
+			yerr=dist_std, fmt='.-', ecolor='r', \
 			linewidth=1.5, label="Distance")
 		plt.title("Distance evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
 			" optimizations with " + num2str(sim_time) + "s simulations")
@@ -1117,8 +1119,8 @@ class Analysis(object):
 			plt.savefig(folder + filename + "_dist.png", format='png', dpi=300)
 
 		fig, ax = Plot.initPlot()
-		ax.errorbar(nodes[3:len(nodes)], power[3:len(nodes)], \
-			yerr=power_std[3:len(nodes)], fmt='.-', ecolor='r', \
+		ax.errorbar(nodes, power, \
+			yerr=power_std, fmt='.-', ecolor='r', \
 			linewidth=1.5, label="Power") 
 		plt.title("Power evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
 			" optimizations with " + num2str(sim_time) + "s simulations")
@@ -1141,8 +1143,9 @@ class Analysis(object):
 			plt.savefig(folder + filename + "_score.png", format='png', dpi=300)
 
 		fig, ax = Plot.initPlot()
-		diff = np.abs(np.array(score) - np.array(score_test))
-		ax.plot(nodes, diff, '.-', linewidth=1.5, label="Robustness")
+		ax.errorbar(nodes, robust, \
+			yerr=robust_std, fmt='.-', ecolor='r', \
+			linewidth=1.5, label="Accuraccy") 
 		plt.title("Difference between noisy and flat score with nodes number for " + str(len(self.y[0])) + \
 			" iterations " + opt_type + " optimizations with " + num2str(sim_time) + "s simulations")
 		Plot.configurePlot(fig, ax, 'Nodes number','Score difference', legendLocation='lower right', size='small')
