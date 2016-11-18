@@ -476,17 +476,17 @@ class Analysis(object):
 			for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
 				item.set_fontsize(17)
 
-			plt.plot(x, y_max ,"r-", label="Gen max")
-			plt.plot(x, y_av, "g-", label="Gen av")
-			plt.plot(x, y_min, "b-", label="Gen min")
+			plt.plot(x, y_max ,"r-", label="Generation Max")
+			plt.plot(x, y_av, "g-", label="Generation Average")
+			plt.plot(x, y_min, "b-", label="Generation Min")
 			if title != None:
 				plt.title(title)
 			else:
 				plt.title("Training " + unit + " of " + self.opt_type[index] + " algorithm with popSize = " + \
 				num2str(self.ps[index]))
 			Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
-			plt.xlabel('Generation number')
-			plt.ylabel(unit)
+			plt.xlabel('Generation Epoch')
+			plt.ylabel(unit.title())
 			if show: plt.show()
 			if save: plt.savefig(filename + "_" + unit + ".png", format='png', dpi=300)
 			plt.close()
@@ -1020,7 +1020,8 @@ class Analysis(object):
 		if sensibility:
 			print "Il faut faire ca!"
 
-	def nodes(self, filename="results_nodes", noiseAnalysis=False, videoAnalysis=False, show=False, save=True):
+	def nodes(self, filename="results_nodes", noiseAnalysis=False, videoAnalysis=False, \
+		genAnalysis=True, show=False, save=True):
 		"""Perform specific analysis for a nodes batch"""
 
 		folder = "nodes_pic/"
@@ -1065,17 +1066,18 @@ class Analysis(object):
 				score.append([best[0]])
 				nodes.append([it_nodes])
 				if noiseAnalysis:
-					print self.filenames[best[1]]
+					print " -- Producting noise analysis graphs for " + str(it_nodes) + " nodes --"
 					self.plot_noise_sim(best[1], filename=folder + "noise_n_" + str(it_nodes),\
-						title="N = " + str(it_nodes), nPoints=30, window=3)
-					self.plot_gen(best[1], filename=folder + "gen_n_" + str(it_nodes), \
-						title="N = " + str(it_nodes))
+						title="N = " + str(it_nodes), nPoints=60, window=10)
 				if videoAnalysis:
-					# Create videos
 					if it_nodes == 20:
 						print " -- Producting simulation video with " + str(it_nodes) + " nodes --"
 						score,self.simulate_ind(best[1], best[2], simTime=10, movie=True, rc=False, simName="Sim_" + \
 							str(it_nodes))
+				if genAnalysis:
+					print " -- Producting generation graphs for " + str(it_nodes) + " nodes --"
+					self.plot_gen(best[1], filename=folder + "gen_n_" + str(it_nodes), \
+						title="CMA-ES evolution of " + str(it_nodes) + " nodes structure")
 
 
 		# Average points with multiple values
