@@ -1405,12 +1405,12 @@ class Analysis(object):
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
 		for i in range(len(set(omega))):
-			ax.errorbar(d_ref[n_omega*i:n_omega*i+n_omega], power_inv[n_omega*i:n_omega*i+n_omega], \
-				yerr=np.array(power_std[n_omega*i:n_omega*i+n_omega]), fmt='.-', ecolor='r', \
+			ax.errorbar(v_ref[n_omega*i:n_omega*i+n_omega], power_inv[n_omega*i:n_omega*i+n_omega], \
+				yerr=np.array(power_std[n_omega*i:n_omega*i+n_omega]), fmt='.-', \
 				linewidth=1.5, label="$f = $ " + num2str(omega[n_omega*i]/2/np.pi) + " Hz")
 
-		plt.title("Pareto curves power-speed with " + opt_type + \
-			" optimizations of " + num2str(sim_time) + "s simulations")
+		plt.title("Power evolution under constrained speed")
+		plt.xlim([0, max(v_ref)])
 		Plot.configurePlot(fig, ax, 'Speed','Power$^{-1}$', legendLocation='upper right', size='small')
 		if show: plt.show()
 		if save:
@@ -1447,7 +1447,7 @@ class Analysis(object):
 			# If reference distance already exists, average with previous values
 			for j, p in enumerate(p_ref):
 				for k, om in enumerate(omega):
-					if p[0] == it_p_ref and om == it_omega and j == k:
+					if p[0] == it_p_ref and om[0] == it_omega and j == k:
 						p_ref[j].append(it_p_ref)
 						dist[j].append(it_dist)
 						omega[j].append(it_omega)
@@ -1468,29 +1468,34 @@ class Analysis(object):
 
 		# Average points with multiple values
 		n_av = 0
+		speed_inv = []
+		speed_std = []
 		for i in range(len(dist)):
 			n_av += len(dist[i])
-			dist[i] = sum(dist[i]) / len(dist[i])
+			speed_inv.append(list(map((lambda x: sim_time / x), dist[i])))
+			speed_std.append(np.std(np.array(speed_inv[i])))
+			speed_inv[i] = sum(speed_inv[i]) / len(speed_inv[i])
 			p_ref[i] = sum(p_ref[i]) / len(p_ref[i])
 			omega[i] = sum(omega[i]) / len(omega[i])
+
 
 		if n_av != len(dist):
 			print(" -- Averaging " + str(n_av) + " graph points with on average " + \
 				num2str(float(n_av)/len(dist)) + " data sets for each --")
 
 		# Sort lists
-		omega, p_ref, dist = (list(t) for t in zip(*sorted(zip(omega, p_ref, dist))))
-		speed_inv = list(map((lambda x: sim_time / x), dist))
+		omega, p_ref, speed_inv, speed_std = (list(t) for t in zip(*sorted(zip(omega, p_ref, speed_inv, speed_std))))
 		n_omega = len(omega) / len(set(omega))
 
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
 		for i in range(len(set(omega))):
-			ax.plot(p_ref[n_omega*i:n_omega*i+n_omega], speed_inv[n_omega*i:n_omega*i+n_omega], \
-				'.-', linewidth=1.5, label="$f = $ " + num2str(omega[n_omega*i]/2/np.pi) + " Hz")
+			ax.errorbar(p_ref[n_omega*i:n_omega*i+n_omega], speed_inv[n_omega*i:n_omega*i+n_omega], \
+				yerr=speed_std[n_omega*i:n_omega*i+n_omega], fmt='.-', \
+				linewidth=1.5, label="$f = $ " + num2str(omega[n_omega*i]/2/np.pi) + " Hz")
 
-		plt.title("Pareto curves speed-power with " + opt_type + \
-			" optimizations of " + num2str(sim_time) + "s simulations")
+		plt.title("Speed evolution under constrained power")
+		plt.xlim([0, max(p_ref)])
 		Plot.configurePlot(fig, ax, 'Power','Speed$^{-1}$', legendLocation='upper right', size='small')
 		if show: plt.show()
 		if save:
