@@ -12,9 +12,9 @@ from matplotlib.mlab import *
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import uniform_filter
 import sys,os
-plt.style.use('fivethirtyeight')
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
+# plt.style.use('fivethirtyeight')
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
 
 class Analysis(object):
 
@@ -405,7 +405,10 @@ class Analysis(object):
 	def _get_style_colors(self):
 		""" Return a arry with the current style colors """
 
-		cols = plt.rcParams['axes.prop_cycle'].by_key()['color']
+		if 'axes.prop_cycle' in plt.rcParams:
+			cols = plt.rcParams['axes.prop_cycle'].by_key()['color']
+		else:
+			cols = ['b', 'r', 'y', 'g', 'k']
 		return cols
 
 	def load(self):
@@ -482,9 +485,9 @@ class Analysis(object):
 			for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
 				item.set_fontsize(17)
 
-			plt.plot(x, y_max, linestyle="-", color=self._get_style_colors()[0], linewidth=0.5, label="Generation Max")
-			plt.plot(x, y_av, linestyle="-", color=self._get_style_colors()[3], linewidth=0.5, label="Generation Average")
-			plt.plot(x, y_min, linestyle="-", color=self._get_style_colors()[2], linewidth=0.5, label="Generation Min")
+			plt.plot(x, y_max, linestyle="-", color=self._get_style_colors()[1], linewidth=0.5, label="Max")
+			plt.plot(x, y_av, linestyle="-", color=self._get_style_colors()[3], linewidth=0.5, label="Average")
+			plt.plot(x, y_min, linestyle="-", color=self._get_style_colors()[0], linewidth=0.5, label="Min")
 			if title != None:
 				plt.title(title)
 			else:
@@ -493,6 +496,7 @@ class Analysis(object):
 			Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
 			plt.xlabel('Generation Epoch')
 			plt.ylabel(unit.title())
+			plt.xlim([0, max(x)])
 			if show: plt.show()
 			if save: plt.savefig(filename + "_" + unit + ".png", format='png', dpi=300)
 			plt.close()
