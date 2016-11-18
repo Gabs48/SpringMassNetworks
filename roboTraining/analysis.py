@@ -1062,6 +1062,8 @@ class Analysis(object):
 			# print i, nodes, it_nodes
 			for j, no in enumerate(nodes):
 				if no[0] == it_nodes:
+					s, p, d = self.simulate_ind(best[1], best[2], simTime=10, movie=False)
+					score_test[j].append(s)
 					dist[j].append(self.y_d[best[1]][best[2]])
 					power[j].append(self.y_p[best[1]][best[2]])
 					score[j].append(best[0])
