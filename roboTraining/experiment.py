@@ -17,7 +17,7 @@ import datetime
 class Experiment(object):
 	"""Class to perform standard experiments"""
 
-	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=7, spring_=100, noNeighbours_=3, plot_=False, \
+	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=10000, omega_=2*np.pi*2, \
 		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=3600, refDist_=100, maxSpring_=200, \
 		noisy_=False, trainOmega_=True):
@@ -219,7 +219,7 @@ def createOmegaVal():
 	# Average with 5 values
 	for i in range(1, 3):
 		freq.extend(np.logspace(-0.7, 1, num=10).tolist())
-		
+
 	for f in freq:
 		for n in nodes:
 				liste.append([2*np.pi*f, n])
