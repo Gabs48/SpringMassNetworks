@@ -1097,18 +1097,18 @@ class Analysis(object):
 		dist_std = np.zeros(len(dist))
 		power_std = np.zeros(len(power))
 		score_std = np.zeros(len(score))
-		robust = (np.array(score) - np.array(score_test)).tolist()
-		robust_std = np.zeros(len(robust))
+		robust = np.zeros(len(score))
+		robust_std = np.zeros(len(score))
 		for i in range(len(dist)):
 		 	n_av += len(dist[i])
 		 	dist_std[i] = np.std(np.array(dist[i]))
 		 	power_std[i] = np.std(np.array(power[i]))
 		 	score_std[i] = np.std(np.array(score[i]))
-		 	robust_std[i] = np.std(np.array(robust[i]))
+		 	robust_std[i] = np.std(np.array(score[i]) - np.array(score_test[i]))
 		 	dist[i] = sum(dist[i]) / len(dist[i])
 		 	power[i] = sum(power[i]) / len(power[i])
+		 	robust[i] = np.mean(np.array(score[i]) - np.array(score_test[i]))
 		 	score[i] = sum(score[i]) / len(score[i])
-		 	robust[i] = sum(robust[i]) / len(robust[i])
 			nodes[i] = sum(nodes[i]) / len(nodes[i])
 
 		if n_av != len(dist):
@@ -1124,8 +1124,7 @@ class Analysis(object):
 		ax.errorbar(nodes, dist, \
 			yerr=dist_std, fmt='.-', ecolor='r', \
 			linewidth=1.5, label="Distance")
-		plt.title("Distance evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
-			" optimizations with " + num2str(sim_time) + "s simulations")
+		plt.title("Travelled distance in 10s in function of nodes number")
 		Plot.configurePlot(fig, ax, 'Nodes number','Distance', legendLocation='lower right', size='small')
 		if show: plt.show()
 		if save:
@@ -1136,8 +1135,7 @@ class Analysis(object):
 		ax.errorbar(nodes, power, \
 			yerr=power_std, fmt='.-', ecolor='r', \
 			linewidth=1.5, label="Power") 
-		plt.title("Power evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
-			" optimizations with " + num2str(sim_time) + "s simulations")
+		plt.title("Dissipated power in function of nodes number")
 		Plot.configurePlot(fig, ax, 'Nodes number','Power', legendLocation='lower right', size='small')
 		if show: plt.show()
 		if save:
@@ -1148,8 +1146,7 @@ class Analysis(object):
 		ax.errorbar(nodes, score, \
 			yerr=score_std, fmt='.-', ecolor='r', \
 			linewidth=1.5, label="Score")
-		plt.title("Score evolution with nodes number for " + str(len(self.y[0])) + " iterations " + opt_type + \
-			" optimizations with " + num2str(sim_time) + "s simulations")
+		plt.title("Best individu score in function of nodes number")
 		Plot.configurePlot(fig, ax, 'Nodes number','Score', legendLocation='lower right', size='small')
 		if show: plt.show()
 		if save:
@@ -1160,8 +1157,7 @@ class Analysis(object):
 		ax.errorbar(nodes, robust, \
 			yerr=robust_std, fmt='.-', ecolor='r', \
 			linewidth=1.5, label="Accuraccy") 
-		plt.title("Difference between noisy and flat score with nodes number for " + str(len(self.y[0])) + \
-			" iterations " + opt_type + " optimizations with " + num2str(sim_time) + "s simulations")
+		plt.title("Difference of score between noisy and straight simulations")
 		Plot.configurePlot(fig, ax, 'Nodes number','Score difference', legendLocation='lower right', size='small')
 		if show: plt.show()
 		if save:
