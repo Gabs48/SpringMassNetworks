@@ -482,9 +482,9 @@ class Analysis(object):
 			for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
 				item.set_fontsize(17)
 
-			plt.plot(x, y_max, "r-", linewidth=0.5, label="Generation Max")
-			plt.plot(x, y_av, "g-", linewidth=0.5, label="Generation Average")
-			plt.plot(x, y_min, "b-", linewidth=0.5, label="Generation Min")
+			plt.plot(x, y_max, marker="-", color=self._get_style_colors[0], linewidth=0.5, label="Generation Max")
+			plt.plot(x, y_av, marker="-", color=self._get_style_colors[3], linewidth=0.5, label="Generation Average")
+			plt.plot(x, y_min, marker="-", color=self._get_style_colors[2], linewidth=0.5, label="Generation Min")
 			if title != None:
 				plt.title(title)
 			else:
