@@ -12,9 +12,9 @@ from matplotlib.mlab import *
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import uniform_filter
 import sys,os
-# plt.style.use('fivethirtyeight')
-# plt.rc('text', usetex=True)
-# plt.rc('font', family='serif')
+plt.style.use('fivethirtyeight')
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
 
 class Analysis(object):
 
