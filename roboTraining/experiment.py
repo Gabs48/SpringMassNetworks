@@ -217,9 +217,9 @@ def createOmegaVal():
 	nodes =  [5, 10, 15, 20]
 	freq =  []
 	# Average with 5 values
-	for i in range(1, 5):
-		freq.extend(np.logspace(0.2, 10, num=10).tolist())
-
+	for i in range(1, 3):
+		freq.extend(np.logspace(-0.7, 1, num=10).tolist())
+		
 	for f in freq:
 		for n in nodes:
 				liste.append([2*np.pi*f, n])
