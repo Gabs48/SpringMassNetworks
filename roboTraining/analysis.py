@@ -1202,8 +1202,8 @@ class Analysis(object):
 			if conv_av < 0.05:
 				continue
 
-			if it_nodes == 10 and it_omega > 25:
-				print self.filenames[i]
+			# if it_nodes == 10 and it_omega > 25:
+			#	print self.filenames[i]
 
 			# If couple omega/ampli already existsn average with previous one
 			for j, om in enumerate(omega):
