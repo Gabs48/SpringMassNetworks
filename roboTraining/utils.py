@@ -540,6 +540,9 @@ class Plot(object):
 			elif legendLocation == 'lower right':
 				bbox1 = 1
 				bbox2 = 0
+			elif legendLocation == 'lower left':
+				bbox1 = 0
+				bbox2 = 0
 			ax.legend(prop={'size':labelsize}, loc = legendLocation, bbox_to_anchor = (bbox1, bbox2), ncol = 3, fancybox = True, shadow = True)
 
 	@staticmethod

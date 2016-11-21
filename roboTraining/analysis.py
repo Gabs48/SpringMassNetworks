@@ -12,9 +12,9 @@ from matplotlib.mlab import *
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import uniform_filter
 import sys,os
-plt.style.use('fivethirtyeight')
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
+# plt.style.use('fivethirtyeight')
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
 
 class Analysis(object):
 
@@ -491,8 +491,8 @@ class Analysis(object):
 			if title != None:
 				plt.title(title)
 			else:
-				plt.title("Training " + unit + " of " + self.opt_type[index] + " algorithm with popSize = " + \
-				num2str(self.ps[index]))
+				plt.title(self.filenames[index])#"Training " + unit + " of " + self.opt_type[index] + " algorithm with popSize = " + \
+				#num2str(self.ps[index]))
 			Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
 			plt.xlabel('Generation Epoch')
 			plt.ylabel(unit.title())
@@ -1171,7 +1171,7 @@ class Analysis(object):
 		mkdir_p(folder)
 		print(" -- Omega Analysis of folder " + self.path + " --")
 
-		dist = []
+		score = []
 		omega = []
 		nodes = []
 		sim_time = self.sim_time[0]
@@ -1194,30 +1194,39 @@ class Analysis(object):
 			if not it_omega:
 				it_omega = self.omega[i]
 			it_nodes = self.n_nodes[i]
-			it_dist = self.get_best_ind(index=i)[0]
+			it_score = self.get_best_ind(index=i)[0]
+
+			# Check if optimization converge or reject it
+			x, y_min, y_max, y_av = self._rearrange_pop(i, score)
+			conv_av = np.mean(y_av[-y_av.size/12])
+			if conv_av < 0.05:
+				continue
+
+			if it_nodes == 10 and it_omega > 25:
+				print self.filenames[i]
 
 			# If couple omega/ampli already existsn average with previous one
 			for j, om in enumerate(omega):
 				for k, no in enumerate(nodes):
 					if om[0] == it_omega and no[0] == it_nodes and j == k:
-						dist[j].append(it_dist)
+						score[j].append(it_score)
 						nodes[j].append(it_nodes)
 						omega[j].append(it_omega)
 						duplicate = True
 
 			if duplicate == False:
-				dist.append([it_dist])
+				score.append([it_score])
 				omega.append([it_omega])
 				nodes.append([it_nodes])
 
 		# Average points with multiple values
 		n_av = []
-		dist_std = np.zeros(len(dist))
-		for i in range(len(dist)):
-			if  len(dist[i]) > 1:
-				n_av.append(len(dist[i]))
-			dist_std[i] = np.std(np.array(dist[i]))
-			dist[i] = sum(dist[i]) / len(dist[i])
+		score_std = np.zeros(len(score))
+		for i in range(len(score)):
+			if  len(score[i]) > 1:
+				n_av.append(len(score[i]))
+			score_std[i] = np.std(np.array(score[i]))
+			score[i] = sum(score[i]) / len(score[i])
 			nodes[i] = sum(nodes[i]) / len(nodes[i])
 			omega[i] = sum(omega[i]) / len(omega[i])
 
@@ -1226,23 +1235,51 @@ class Analysis(object):
 				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
 
 		# Sort lists
-		nodes, omega, dist, dist_std = (list(t) for t in zip(*sorted(zip(nodes, omega, dist, dist_std))))
-		r_nodes = len(set(nodes))
-		n_nodes = len(nodes) / r_nodes
+		nodes, omega, score, score_std = (list(t) for t in zip(*sorted(zip(nodes, omega, score, score_std))))
+		freq = np.array(omega) / (2 * np.pi)
 
-		# Plot distance as a fct of power in a loglog graph for different omega values
+
+		x = []; y = [];	z = []; w = [];	j = 0;  n_prec = 0
+		for i, n in enumerate(nodes):
+			if n != n_prec:
+				w.append(n)
+				x.append([freq[i]])
+				y.append([score[i]])
+				z.append([score_std[i]])
+				j += 1
+			else:
+				x[j-1].append(freq[i])
+				y[j-1].append(score[i])
+				z[j-1].append(score_std[i])
+			n_prec = n
 		fig, ax = Plot.initPlot()
-		for i in range(r_nodes):
-			ax.errorbar(np.array(omega[n_nodes*i:n_nodes*i+n_nodes]), np.array(dist[n_nodes*i:n_nodes*i+n_nodes]), \
-				yerr=np.array(dist_std[n_nodes*i:n_nodes*i+n_nodes]), fmt='.-', ecolor='r', \
-				linewidth=1.5, label="$N_{nodes} = $ " + \
-				num2str(nodes[i*n_nodes]))
+		for i in range(0, len(x)):
+		 	ax.errorbar(x[i], y[i], yerr=z[i], fmt='.-', \
+		 		linewidth=1.5, label="$N_{nodes} = $ " + \
+		 		num2str(w[i]))
 
-		plt.title("Score curve in fct of $\omega$ for " + str(len(self.y[0])) + " iterations " + opt_type + \
-			" optimizations with " + num2str(sim_time) + "s simulations")
-		Plot.configurePlot(fig, ax, 'Omega','Score', legendLocation='lower right', size='small')
-		# ax.set_xlim([5e-5, 2])
-		# ax.set_ylim([1e-3, 5])
+		# Plot score as a fct of power in a loglog graph for different omega values
+		# r_nodes = len(set(nodes))
+		# n_nodes = len(nodes) / r_nodes
+		# fig, ax = Plot.initPlot()
+		# for i in range(r_nodes):
+		# 	ax.errorbar(freq[n_nodes*i:n_nodes*i+n_nodes], np.array(score[n_nodes*i:n_nodes*i+n_nodes]), \
+		# 		yerr=np.array(score_std[n_nodes*i:n_nodes*i+n_nodes]), fmt='.-', ecolor='r', \
+		# 		linewidth=1.5)#, label="$N_{nodes} = $ " + \
+		# 		#num2str(nodes[i*n_nodes]))
+		# # Print 3DB bandwidth
+		# major_ticks = np.arange(0, 10, 1)                                              
+		# minor_ticks = np.arange(0, 10, 0.1)                                               
+		# ax.set_xticks(major_ticks)                                                       
+		# ax.set_xticks(minor_ticks, minor=True)  
+		# ax.grid(which='both') 
+		# ax.plot([min(freq), max(freq)], [max(score)/2, max(score)/2], linewidth=1.5, label="-3 dB score value")
+
+
+		plt.title("Evolution of score with fixed global frequency")
+		Plot.configurePlot(fig, ax, 'Frequency','Score', legendLocation='lower left', size='small')
+		ax.set_xlim([0, np.max(freq)])
+		#ax.set_ylim([1e-3, 5])
 		if show: plt.show()
 		if save: plt.savefig(folder + filename + ".png", format='png', dpi=300)
 
