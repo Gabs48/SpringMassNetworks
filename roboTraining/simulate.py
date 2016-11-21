@@ -252,13 +252,13 @@ class Simulation(object):
 			return [(np.tanh(C * refPower / power) * np.tanh(C * distance / refDist)), power, distance]
 		elif self.simulEnv.perfMetr == 'powersat':
 			if power > refPower:
-				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
+				score = np.tanh(C * refPower / power) * distance
 			else:
-				score = (np.tanh(C) * np.tanh(C * distance / refDist))
+				score = distance
 			return [score, power, distance]
 		elif self.simulEnv.perfMetr == 'distsat':
 			if distance < refDist:
-				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
+				score = np.tanh(C * refPower / power) * distance
 			else:
 				score = (np.tanh(C * refPower / power) * np.tanh(C))
 			return [score, power, distance]
