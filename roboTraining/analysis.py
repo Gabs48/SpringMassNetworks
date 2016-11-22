@@ -15,6 +15,8 @@ import sys,os
 # plt.style.use('fivethirtyeight')
 # plt.rc('text', usetex=True)
 # plt.rc('font', family='serif')
+plt.rc('axes', facecolor='white')
+plt.rc('savefig', facecolor='white')
 
 class Analysis(object):
 
@@ -1202,9 +1204,6 @@ class Analysis(object):
 			if conv_av < 0.05:
 				continue
 
-			# if it_nodes == 10 and it_omega > 25:
-			#	print self.filenames[i]
-
 			# If couple omega/ampli already existsn average with previous one
 			for j, om in enumerate(omega):
 				for k, no in enumerate(nodes):
@@ -1276,8 +1275,8 @@ class Analysis(object):
 		# ax.plot([min(freq), max(freq)], [max(score)/2, max(score)/2], linewidth=1.5, label="-3 dB score value")
 
 
-		plt.title("Evolution of score with fixed global frequency")
-		Plot.configurePlot(fig, ax, 'Frequency','Score', legendLocation='lower left', size='small')
+		plt.title("Evolution of score for different structures in function of global frequency")
+		Plot.configurePlot(fig, ax, 'Frequency','Score', legendLocation='lower right', size='small')
 		ax.set_xlim([0, np.max(freq)])
 		#ax.set_ylim([1e-3, 5])
 		if show: plt.show()

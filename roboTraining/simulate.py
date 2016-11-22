@@ -252,15 +252,15 @@ class Simulation(object):
 			return [(np.tanh(C * refPower / power) * np.tanh(C * distance / refDist)), power, distance]
 		elif self.simulEnv.perfMetr == 'powersat':
 			if power > refPower:
-				score = np.tanh(C * refPower / power) * distance
+				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
 			else:
-				score = distance
+				score = (np.tanh(C * distance / refDist))
 			return [score, power, distance]
 		elif self.simulEnv.perfMetr == 'distsat':
 			if distance < refDist:
-				score = np.tanh(C * refPower / power) * distance
+				score = (np.tanh(C * refPower / power) * np.tanh(C * distance / refDist))
 			else:
-				score = (np.tanh(C * refPower / power) * np.tanh(C))
+				score = (np.tanh(C * refPower / power))
 			return [score, power, distance]
 		else:
 			raise NotImplementedError ('the requested performance metric has not been implemented')

@@ -19,7 +19,7 @@ class Experiment(object):
 
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=10000, omega_=2*np.pi*2, \
-		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=3600, refDist_=100, maxSpring_=200, \
+		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=1000, refDist_=1000, maxSpring_=200, \
 		noisy_=False, trainOmega_=True):
 		"""Initialize the variables lists"""
 
