@@ -178,8 +178,8 @@ def createRefPowerParetoVal():
 	power =  np.array([100, 500, 1000, 2500, 5000, 7500, 10000, 12500, 15000, 17500]).tolist()
 	freq =  [3]
 	# Average with 5 values
-	# for i in range(1, 5):
-	# 	freq.extend(range(1, 5))
+	for i in range(1, 5):
+	 	freq.extend([3])
 
 	for f in freq:
 		for p in power:
@@ -193,9 +193,9 @@ def createRefDistParetoVal():
 	liste = []
 	dist =  np.linspace(10, 300, num=10).tolist()
 	freq =  [3]
-	# # Average with 5 values
-	# for i in range(1, 5):
-	# 	freq.extend(range(1, 5))
+	# Average with 5 values
+	for i in range(1, 5):
+	 	freq.extend([3])
 
 	for f in freq:
 		for d in dist:
