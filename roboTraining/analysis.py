@@ -87,6 +87,8 @@ class Analysis(object):
 		self.pc2_std = []
 		self.window = []
 
+		self.pcaMat = None
+
 	def _load_parameters(self):
 		"""Load the training parameters from all parameters files"""
 
@@ -830,8 +832,8 @@ class Analysis(object):
 			return max_t, max_index1, max_index2
 
 	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, \
-		movie=True, transPhase=0, trainingPhase=0.7, openPhase=0.35, alpha=0.001, beta=1, \
-		simNoise=0, paramNoise=0, noiseType="rand"):
+		movie=True, pca=False, transPhase=0, trainingPhase=0.7, openPhase=0.35, alpha=0.001, beta=1, \
+		pcaTitle="PCA", pcaFilename="pca", nrmse=False, simNoise=0, paramNoise=0, noiseType="rand"):
 		"""Render a simulation movie for a given individu"""
 
 		# Init variables
@@ -844,7 +846,7 @@ class Analysis(object):
 
 		print(' -- Simulate individu ' +  scoreFilename + ' (' + str(index2) + "/" + \
 			str(len(self.scores[index1])) + ") with score {:.4f}".format(self.y[index1][index2]) + \
-			" for " + num2str(simTime) + "s. This can takes several minutes. --")
+			" for " + num2str(simTime) + "s. --")
 
 		# Construct robot from config file
 		configFilename = scoreFilename.replace("score", "config")
@@ -889,16 +891,23 @@ class Analysis(object):
 
 		# Create the simulation
 		plotter = Plotter(movie=movie, plot=movie, movieName=simName, plotCycle = 6)
-		simulEnv = SimulationEnvironment(timeStep=self.ts[index1], simulationLength=sl, plot=plotter, \
+		simulEnv = SimulationEnvironment(timeStep=self.ts[index1], simulationLength=sl, plot=plotter,\
+			pcaPlot=pca, pcaTitle=pcaTitle, pcaFilename=pcaFilename, pcaMat=self.pcaMat, \
 			perfMetr="powereff", controlPlot=False, refPower=self.ref_pow[index1], refDist=self.ref_dist[index1])
 
 		# Do the simulation
 		if rc:
-			simul = ForceTrainingSimulation(simulEnv, robot, \
-				transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
-				alpha=alpha, beta=beta, outputFilename="training", \
-				outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
-				str(openPhase) + "_" + str(alpha) + "_" + str(beta))
+			if nrmse:
+				simul = ForceTrainingSimulation(simulEnv, robot, \
+					transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
+					trainingPlot="cont", alpha=alpha, beta=beta, outputFilename="control_n_" + \
+					str(self.n_nodes[index1]), outputFolder="nodes_CL_pic")
+			else:
+				simul = ForceTrainingSimulation(simulEnv, robot, \
+					transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
+					trainingPlot="all", alpha=alpha, beta=beta, outputFilename="training", \
+					outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
+					str(openPhase) + "_" + str(alpha) + "_" + str(beta))
 			# simul = TrainingSimulation(simulEnv, robot, \
 			# 	transPhase=transPhase, trainPhase=trainingPhase, \
 			# 	outputFilename="training", \
@@ -918,8 +927,13 @@ class Analysis(object):
 			". Distance:  {:.2f}".format(distance) + " and Power:  {:.2f}".format(power) + " -- ")
 		if movie:
 			print(" -- Video saved in file " + simName + ".mp4 --")
+		if pca and self.pcaMat == None:
+			self.pcaMat = simulEnv.pcaMat
 
-		return [score, simul.getDistance(), robot.getPower()]
+		if nrmse:
+			return [score, simul.getDistance(), robot.getPower(), simul.get_training_error()]
+		else:
+			return [score, simul.getDistance(), robot.getPower()]
 
 	## ------------------- Specific Simulation types ---------------------------
 
@@ -1453,7 +1467,7 @@ class Analysis(object):
 			print(" -- Print distance pareto in " + folder + filename + ".png --")
 			plt.savefig(folder + filename + ".png", format='png', dpi=300)
 
-	def pareto_power(self, filename="results_pareto_power", show=False, save=True):
+	def pareto_power(self, filename="results_pareto_power", movieAnalysis=False, show=False, save=True):
 		"""Perform specific analysis for a pareto power batch"""
 
 		folder = "pareto_pic/"
@@ -1494,23 +1508,26 @@ class Analysis(object):
 				p_ref.append([it_p_ref])
 				omega.append([it_omega])
 
-				# # Create videos
-				# if np.floor(it_omega) == 25 or np.floor(it_omega) == 31 or np.floor(it_omega) == 6:
-				# 	if it_p_ref == 100 or it_p_ref == 500 or it_p_ref == 1000:
-				# 		print it_omega, it_p_ref
-				# 		self.simulate_ind(best[1], best[2], simTime=10, movie=True, rc=False, simName="Sim_" + \
-				# 			str(it_omega) +"_" + str(it_p_ref))
+				# Limit cycle and video gait analysis
+				if movieAnalysis:
+					name  = str(int(it_omega/2/np.pi)) +"_" + str(int(it_p_ref))
+					simName = folder + "sim_" + name
+					pcaName = folder + "pca_" + name
+					pcaTitle = "Limit cycle for $f = " + num2str(np.ceil(it_omega/2/np.pi)) + \
+						" Hz$ and $P = " + num2str(np.ceil(it_p_ref)) + " W$"
+				 	self.simulate_ind(best[1], best[2], simTime=10, movie=True, rc=False, pca=True, \
+				 		simName=simName, pcaFilename=pcaName, pcaTitle=pcaTitle)
 
 
 		# Average points with multiple values
 		n_av = 0
-		speed_inv = []
+		speed = []
 		speed_std = []
 		for i in range(len(dist)):
 			n_av += len(dist[i])
-			speed_inv.append(list(map((lambda x: sim_time / x), dist[i])))
-			speed_std.append(np.std(np.array(speed_inv[i])))
-			speed_inv[i] = sum(speed_inv[i]) / len(speed_inv[i])
+			speed.append(list(map((lambda x: x / sim_time), dist[i])))
+			speed_std.append(np.std(np.array(speed[i])))
+			speed[i] = sum(speed[i]) / len(speed[i])
 			p_ref[i] = sum(p_ref[i]) / len(p_ref[i])
 			omega[i] = sum(omega[i]) / len(omega[i])
 
@@ -1520,20 +1537,131 @@ class Analysis(object):
 				num2str(float(n_av)/len(dist)) + " data sets for each --")
 
 		# Sort lists
-		omega, p_ref, speed_inv, speed_std = (list(t) for t in zip(*sorted(zip(omega, p_ref, speed_inv, speed_std))))
+		omega, p_ref, speed, speed_std = (list(t) for t in zip(*sorted(zip(omega, p_ref, speed, speed_std))))
 		n_omega = len(omega) / len(set(omega))
 
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
 		for i in range(len(set(omega))):
-			ax.errorbar(p_ref[n_omega*i:n_omega*i+n_omega], speed_inv[n_omega*i:n_omega*i+n_omega], \
+			ax.errorbar(p_ref[n_omega*i:n_omega*i+n_omega], speed[n_omega*i:n_omega*i+n_omega], \
 				yerr=speed_std[n_omega*i:n_omega*i+n_omega], fmt='.-', \
 				linewidth=1.5, label="$f = $ " + num2str(omega[n_omega*i]/2/np.pi) + " Hz")
 
 		plt.title("Speed evolution under constrained power")
 		plt.xlim([0, max(p_ref)])
-		Plot.configurePlot(fig, ax, 'Power','Speed$^{-1}$', legendLocation='upper right', size='small')
+		Plot.configurePlot(fig, ax, 'Power','Speed', legendLocation='lower right', size='small')
 		if show: plt.show()
 		if save:
 			print(" -- Print power pareto in " + folder + filename + ".png --")
 			plt.savefig(folder + filename + ".png", format='png', dpi=300)
+
+	def nodes_CL(self, filename="results_nodes_cl", noiseAnalysis=False, videoAnalysis=False, \
+		genAnalysis=True, show=False, save=True):
+		"""Perform specific analysis for closed loop experiments for different structures"""
+
+		folder = "nodes_CL_pic/"
+		mkdir_p(folder)
+
+		nodes = []
+		nrmse = []
+		abse = []
+		dist = []
+		dist_cl = []
+		sim_time = self.sim_time[0]
+		opt_type = self.opt_type[0]
+		sim_time_cl = 100
+		max_it = 2
+
+		# Fill values from loaded variables
+		for i in range(len(self.y)):
+
+			duplicate = False
+			assert self.sim_time[i] == sim_time, \
+				"For a meaningfull graph, ensure the simulation times are the same for all data"
+			assert self.opt_type[i] == opt_type, \
+				"For a meaningfull graph, ensure the optimization algorithms are the same for all data"
+
+			# Fetch iteration nodes number value and best individu
+			it_nodes = self.n_nodes[i]
+			best = self.get_best_ind(index=i)
+			it_dist = float(self.dists[best[1]][best[2]])
+
+			# Find and eliminate duplicated experiments
+			for j, no in enumerate(nodes):
+				if no == it_nodes:
+					print " -- Performing the closed-loop experiment one time only for each node number." + \
+						" This experiment wont be taken into account: " + self.filenames[i]
+					duplicate = True
+					
+			if duplicate == False:
+				for k in range(0, max_it):
+					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
+						openPhase=1,rc=True, nrmse=True, alpha=0.0001, beta=1, transPhase=0, trainingPhase=0.9)
+					if k == 0:
+						nodes.append([it_nodes])
+						nrmse.append([err[0]])
+						abse.append([err[1]])
+						dist_cl.append([d])
+						dist.append([it_dist])
+					else:
+						nodes[i].append(it_nodes)
+						nrmse[i].append(err[0])
+						abse[i].append(err[1])
+						dist_cl[i].append(d)
+						dist[i].append(it_dist)
+
+		# Average points
+		n_av = 0
+		nrmse_std = []
+		dist_cl_std = []
+		for i in range(len(dist)):
+			n_av += len(dist[i])
+			nrmse_std.append(np.std(np.array(nrmse[i])))
+			dist_cl_std.append(np.std(np.array(dist_cl[i]) / sim_time_cl * sim_time))
+			nrmse[i] = sum(nrmse[i]) / len(nrmse[i])
+			abse[i] = sum(abse[i]) / len(abse[i])
+			dist_cl[i] = sum(dist_cl[i]) / len(dist_cl[i]) / sim_time_cl * sim_time
+			dist[i] = sum(dist[i]) / len(dist[i])
+			nodes[i] = sum(nodes[i]) / len(nodes[i])
+
+		if n_av != len(dist):
+			print(" -- Averaging " + str(n_av) + " graph points with on average " + \
+				num2str(float(n_av)/len(nodes)) + " data sets for each --")
+
+		# Sort lists
+		nodes, nrmse, abse, dist, dist_cl, nrmse_std, dist_cl_std = \
+			(list(t) for t in zip(*sorted(zip(nodes, nrmse, abse, dist, dist_cl, nrmse_std, dist_cl_std))))
+
+		# Plot nrmse as a fonction of the nodes number
+		fig, ax = Plot.initPlot()
+		ax.errorbar(nodes, nrmse, yerr=nrmse_std, linewidth=1.5, fmt=".-", label="NRMSE")
+		plt.title("NRMSE evolution for nodes number")
+		Plot.configurePlot(fig, ax, 'Nodes','NRMSE', legendLocation='lower right', size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print NRMSE in " + folder + filename + "_nrmse.png --")
+			plt.savefig(folder + filename + "_nrmse.png", format='png', dpi=300)
+
+		# Plot abse as a fonction of the nodes number
+		fig, ax = Plot.initPlot()
+		ax.plot(nodes, abse, ".-", linewidth=1.5, label="Max Absolute error")
+		plt.title("Absolute error evolution for nodes number")
+		Plot.configurePlot(fig, ax, 'Nodes','Absolute error', legendLocation='lower right',\
+		 size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print ABSE in " + folder + filename + "_abse.png --")
+			plt.savefig(folder + filename + "_abse.png", format='png', dpi=300)
+
+		# Plot distance as a fonction of the nodes number
+		fig, ax = Plot.initPlot()
+		ax.plot(nodes, dist, ".-", linewidth=1.5, color=self._get_style_colors()[0], label="Open loop distance")
+		ax.errorbar(nodes, dist_cl, yerr=dist_cl_std, linewidth=1.5, fmt=".-", \
+			color=self._get_style_colors()[1], label="Closed-loop distance")
+		plt.title("Travelled distance in function of nodes number")
+		Plot.configurePlot(fig, ax, 'Nodes','Travelled distance', legendLocation='lower right',\
+		 size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print DISTS in " + folder + filename + "_dist.png --")
+			plt.savefig(folder + filename + "_dist.png", format='png', dpi=300)

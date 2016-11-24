@@ -151,8 +151,9 @@ class SimulationEnvironment(object):
 	""" class with general Parameters for Simulations but not bound to a specific robot"""
 	param = ["timeStep", "simulationLength", "verlet", "refPower", "refDist"]
 
-	def  __init__(self,timeStep = 0.005, simulationLength=10000, plot = Plotter(), verlet = True, noisy = False, \
-		controlPlot = True, perfMetr = "dist", refDist = 0, refPower = 0):
+	def  __init__(self,timeStep=0.005, simulationLength=10000, plot=Plotter(), verlet=True, noisy=False, \
+		controlPlot=True, pcaPlot=False, pcaTitle="PCA", pcaFilename="pca", pcaMat=None, perfMetr="dist", \
+		refDist=0 , refPower=0):
 		self.timeStep = timeStep  # time step size
 		self.plot = plot  # plotting
 		assert isinstance(simulationLength, int), "simulation length should be integer"
@@ -160,7 +161,11 @@ class SimulationEnvironment(object):
 		self.verlet = verlet;
 		self.noisy = noisy;
 		self.controlPlot = controlPlot
+		self.pcaPlot = pcaPlot
+		self.pcaTitle = pcaTitle
+		self.pcaFilename = pcaFilename
 		self.perfMetr = perfMetr
+		self.pcaMat = pcaMat
 		if self.perfMetr == "powereff" or self.perfMetr == "powersat" or self.perfMetr == "distsat":
 			assert refDist is not 0, refPower is not 0
 			self.refDist = refDist
@@ -176,9 +181,18 @@ class SimulationEnvironment(object):
 class ControlPlotter(object):
 	" plot the generated control signals "
 
-	def __init__(self, robot):
+	def __init__(self, robot, simulEnv):
 		self.ydata = np.zeros((0, robot.getNoConnections()))
 		self.xdata = np.zeros((0,1))
+		self.prev_speed = SpaceList(np.zeros(robot.getShape(),float))
+		self.simulEnv = simulEnv
+		self.timeStep = simulEnv.timeStep
+		self.filename = simulEnv.pcaFilename
+		self.simulationLength = self.simulEnv.simulationLength
+		self.simulationTime = self.simulEnv.timeStep
+		self.timeArray = np.linspace(0, self.simulationTime, num=self.simulationLength)
+		self.title = simulEnv.pcaTitle
+		self.acc =  np.array([])
 
 	def addData(self, robot):
 		currentTime = robot.state.currentTime
@@ -186,11 +200,62 @@ class ControlPlotter(object):
 		self.ydata = np.vstack((self.ydata, restlength))
 		self.xdata = np.vstack((self.xdata, [[currentTime]]))
 
+	def addPCAData(self, robot):
+		"""Store PCA values for plotting limitcycle"""
+
+		speed_it = robot.state.speed
+		acc_it = (speed_it.getArray() - self.prev_speed.getArray()) / self.timeStep
+		if self.acc.size == 0:
+			self.acc = acc_it
+		else:
+			self.acc = np.vstack((self.acc, acc_it))
+		return
+
 	def plot(self):
 		fig, ax = Plot.initPlot()
 		ax.plot(self.xdata,self.ydata)
 		Plot.configurePlot(fig,ax, "time","current SpringLength")
 		fig.show()
+
+
+	def plotLimitCycle(self, n=None, save=True, show=False):
+		"""Plot the limit cycle of x_training and y_trained"""
+
+		gap = 2
+		pca = None
+		window = int(np.ceil(self.acc.shape[0]/gap))
+
+		vec =  self.acc
+		if vec.shape[0] > vec.shape[1]:
+			if self.simulEnv.pcaMat == None:
+				pca = PCA(vec)
+				pc1 = pca.Y[:,0]
+				pc2 = pca.Y[:,1]
+			else:
+				pca = self.simulEnv.pcaMat
+				res = pca.project(vec)
+				pc1 = res[:,0]
+				pc2 = res[:,1]
+		else:
+			pc1 = vec[:,0]
+			pc2 = vec[:,1]
+
+		print " -- Save Limit cycle plot in " + self.filename
+		fig, ax = Plot.initPlot(proj="3d")
+		for j in xrange(1, window):
+			ax.plot(pc1[j*gap:(j+1)*gap+1], pc2[j*gap:(j+1)*gap+1], \
+				self.timeArray[j*gap:(j+1)*gap+1], \
+				c=plt.cm.winter(1.*j/window), linewidth=1.2, label="PCA trajectory")
+		ax.set_xlabel('PC 1')
+		ax.set_ylabel('PC 2')
+		ax.set_zlabel('Time')
+		ax.view_init(30, 60)
+		plt.title(self.title)
+		if show: plt.show()
+		if save: plt.savefig(self.filename + ".png", format='png', dpi=300)
+		plt.close()
+
+		return pca
 
 class Simulation(object):
 	""" class to run and store simulation runs, for better results the 
@@ -205,8 +270,9 @@ class Simulation(object):
 		self.endState = None
 		self.iterationNumber = 0;
 		self.controlPlot = simulEnv.controlPlot
-		if self.controlPlot:
-			self.controlPlotter = ControlPlotter(robot)
+		self.pcaPlot = simulEnv.pcaPlot
+		if self.controlPlot or self.pcaPlot:
+			self.controlPlotter = ControlPlotter(robot, simulEnv)
 
 	def simulateStep(self):
 		""" Euler integration for a single time step"""
@@ -224,10 +290,14 @@ class Simulation(object):
 			self.simulEnv.plot.update(self.robot,self.iterationNumber)
 			if self.controlPlot:
 				self.controlPlotter.addData(self.robot)
+			if self.pcaPlot:
+				self.controlPlotter.addPCAData(self.robot)
 		self.simulEnv.end()
 		self.endState = self.robot.getState()
 		if self.controlPlot:
 			self.controlPlotter.plot()
+		if self.pcaPlot:
+			self.simulEnv.pcaMat = self.controlPlotter.plotLimitCycle()
 		return self.performanceMetric()
 
 	def getDistance(self):
@@ -439,8 +509,8 @@ class TrainingSimulation(VerletSimulation):
 	This class can be extended by rewriting the trainStep, runStep and train methods
 	 """
 
-	def __init__(self, simulEnv, robot, omega=5, transPhase=0.2, trainPhase=0.6, trainingPlot=True, \
-		signTime=None, wDistPlot=True, outputFilename="sinusoid", outputFolder="RC"):
+	def __init__(self, simulEnv, robot, omega=5, transPhase=0.2, trainPhase=0.6, trainingPlot="all", \
+		signTime=None, outputFilename="sinusoid", outputFolder="RC"):
 		""" Init the training test sim class and parent classes
 		 - omega is the desired output sinusoid frequency. It should correspond to the frequency of the MSN
 		 - transPhase is the proportion of time dedicated to transitoire dynamics before training
@@ -457,7 +527,6 @@ class TrainingSimulation(VerletSimulation):
 		self.transPhase = transPhase
 		self.trainPhase = trainPhase
 		self.trainingPlot = trainingPlot
-		self.wDistPlot = wDistPlot
 		self.outputFolder = outputFolder
 		self.outputFilename = outputFilename
 
@@ -475,6 +544,10 @@ class TrainingSimulation(VerletSimulation):
 		self.yTraining = self.create_y_training()
 		self.xTraining = np.array([])
 		self.yTrained = np.array([])
+		self.nrmsError = None
+		self.absError = None
+		self.error = None
+		self.weightMatrixDiff = None
 
 		self.N = self.robot.getState().pos.getArray().shape[1] + self.robot.getState().speed.getArray().shape[1]
 		if len(self.yTraining[self.iterationNumber].shape) != 0:
@@ -541,7 +614,7 @@ class TrainingSimulation(VerletSimulation):
 		# Print debug
 		print " -- Network training by linear regression performed. Sum of residues = {:.4f}".format(res[0]) + \
 			". Global NRMSE = {:.4f} --".format(self.nrmse(y, np.dot(x, w)))
-		if self.wDistPlot:
+		if self.trainingPlot == "all":
 			self.plotW()
 
 		# Start Closed-Loop mode
@@ -608,9 +681,13 @@ class TrainingSimulation(VerletSimulation):
 		if it == self.simulEnv.simulationLength - 1:
 			#print "5. End of simulation. It: " + str(it)
 			self.runStep()
-			if self.trainingPlot:
+			if self.trainingPlot == "all":
+				self.plot(n=6000)
 				self.plotLimitCycle()
-				self.plot(6000)
+			if self.trainingPlot == "cont":
+				self.plot(n=3000, comp=1)
+				self.plotWDiff(-self.trainLength*2/3)
+				self.plotError(-self.trainLength+50)
 
 	def mse(self, arr1, arr2):
 		""" Compute MSE between two matrices """
@@ -643,17 +720,45 @@ class TrainingSimulation(VerletSimulation):
 
 		return [n_trans, n_train, n_run, n_tot, n]
 
-	def plot(self, n=None, show=False, save=True):
+	def get_training_error(self):
+		"""
+		Fill and return rms error and absolute for all actuators
+		"""
+
+		y_err = []
+		if self.nrmsError == None:
+			for i in range(self.O):
+				y_err.append(self.nrmse(self.yTraining[:,i].reshape(-1,1), self.yTrained[:,i].reshape(-1,1),))
+
+			self.nrmsError = sum(y_err) / float(len(y_err))
+			print " -- Computing NRMS Error: " + str(self.nrmsError) + " --"
+
+		y_err = []
+		if self.absError == None:
+			for i in range(self.O):
+				y_norm = np.max(self.yTraining[:,i]) - np.min(self.yTraining[:,i])
+				y_err.append(100 * np.max(np.abs(self.yTraining[:,i].reshape(-1,1) - \
+					self.yTrained[:,i].reshape(-1,1)) / y_norm))
+
+			self.absError = sum(y_err) / float(len(y_err))
+			print " -- Computing Max Absolute Error:  {:.2f} %".format(self.absError) + " --"
+
+		return self.nrmsError, self.absError
+
+	def plot(self, n=None, comp=None, show=False, save=True):
 		""" Print the driving and trained signals as a fct of time in a file"""
 
 		[n_trans, n_train, n_run, n_tot, n] = self._numPoints(n)
-		print [n_trans, n_train, n_run, n_tot, n]
 
 		# Some arrays init
 		nrmse = 0
 		y_err = np.zeros(1)
 
-		for i in range(self.O):
+		# Get number of graphs to print
+		if comp == None:
+			comp = self.O
+
+		for i in range(comp):
 
 			# Compute error vector
 			if n_run != 0:
@@ -670,10 +775,7 @@ class TrainingSimulation(VerletSimulation):
 
 			plt.plot(self.timeArray[-n:], self.yTraining[-n:, i] ,"r--", label="Training signal")
 			plt.plot(self.timeArray[-n:], np.zeros(n) ,"k-")
-			if n < len(self.yTrained[:,i]):
-				plt.plot(self.timeArray[n_tot-n:n_tot-n_run], self.yTrained[n_train-n:n_train-n_run,i] ,"y-", label="Trained sig (train)")
-			else:
-				plt.plot(self.timeArray[n_trans+1:n-n_run], self.yTrained[1:n-n_run-n_trans, i] ,"y-", label="Trained sig (train)")
+			plt.plot(self.timeArray[-n:-n_run-1], self.yTrained[-n:-n_run-1, i] ,"y-", label="Trained sig (train)")
 			if n_run != 0:
 				plt.plot(self.timeArray[-n_run-1:], self.yTrained[-n_run-1:, i] ,"b-", label="Trained sig (run)")
 				#plt.plot(self.timeArray[-n_run:], y_err[-n_run:] ,"g-", label="Error signal")
@@ -699,6 +801,55 @@ class TrainingSimulation(VerletSimulation):
 		if show: plt.show()
 		if save: plt.savefig(self.outputFolder + "/" + self.outputFilename + "_w_hist.png", format='png', dpi=300)
 		plt.close()
+
+	def plotWDiff(self, n=None, show=False, save=True):
+		""" Plot evolution of the weight matrix differences """
+		
+		neg = False
+		if n != None: 
+			if n < 0:
+				neg = True
+				n = abs(n)
+
+		[n_trans, n_train, n_run, n_tot, n] = self._numPoints(n)
+		if n > n_train - 2:
+			n = n_train - 2
+
+		fig, ax = Plot.initPlot()
+		if neg:
+			plt.plot(self.timeArray[n_tot-n_run-n:n_tot-n_run], self.weightMatrixDiff[-n:])
+		else:
+			plt.plot(self.timeArray[n_trans:n_trans+n], self.weightMatrixDiff[0:n])
+		plt.title("Evolution of the trained weights with time")
+		plt.xlabel("Time")
+		plt.ylabel("Weight matrix derivative")
+		Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=False)
+		if show: plt.show()
+		if save: plt.savefig(self.outputFolder + "/" + self.outputFilename + "_w_diff.png", format='png', dpi=300)
+
+	def plotError(self, n=None, show=False, save=True):
+		""" Plot error evolution"""
+		
+		neg = False
+		if n != None: 
+			if n < 0:
+				neg = True
+				n = abs(n)
+
+		[n_trans, n_train, n_run, n_tot, n] = self._numPoints(n)
+		if n > n_train - 2:
+			n = n_train - 2
+
+		fig, ax = Plot.initPlot()
+		if neg:
+			plt.plot(self.timeArray[n_tot-n_run-n:n_tot-n_run], self.error[-n:])
+		else:
+			plt.plot(self.timeArray[n_trans:n_trans+n], self.error[0:n])
+		plt.title("Error evolution")
+		plt.xlabel("Time")
+		plt.ylabel("Error")
+		if show: plt.show()
+		if save: plt.savefig(self.outputFolder + "/" + self.outputFilename + "_error.png", format='png', dpi=300)
 
 	def plotLimitCycle(self, n=None, show=False, save=True):
 		"""Plot the limit cycle of x_training and y_trained"""
@@ -752,7 +903,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 
 		# Fix here the training and running phase if needed
 		super(ForceTrainingSimulation, self).__init__(simulEnv, robot, transPhase=transPhase,  \
-			trainPhase=trainPhase, trainingPlot=trainingPlot, wDistPlot=wDistPlot, \
+			trainPhase=trainPhase, trainingPlot=trainingPlot, \
 			signTime=signTime, outputFilename=outputFilename, outputFolder=outputFolder)
 
 		# Class variables
@@ -765,7 +916,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Algorithm constants
 		self.alpha = alpha
 		self.beta = beta
-		self.hist = 20
+		self.hist = 3
 
 		# Algorithm matrices
 		self.trainIt = 0
@@ -789,7 +940,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 			if i < 3:
 				x = np.vstack((x, self.inputs[i]))
 			else:
-				if i%4 == 0:
+				if i%5 == 0:
 					x = np.vstack((x, self.inputs[i]))
 
 		# Compute new estimation
@@ -816,6 +967,13 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Get robot current state
 		x_it =  self.Aold.getArray().T
 
+		# Create noisy vector
+		x_it_av = np.mean(np.abs(x_it))
+		noise_k_it = 1 - 2 * self.trainIt / float(self.trainLength)
+		if noise_k_it < 0:
+			noise_k_it = 0
+		noise_it = 0.1 * noise_k_it * x_it_av * np.random.rand(x_it.shape[0], x_it.shape[1])
+
 		# If the inputs fifo hasen't been created, do it
 		if not self.inputs:
 			self.N = x_it.shape[0]
@@ -824,7 +982,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 
 		# Update the inputs fifo (TODO: useless if the whole xtraining is already savec below)
 		self.inputs.pop(0)
-		self.inputs.append(x_it)
+		self.inputs.append(x_it + noise_it)
 
 		# Fill the xTraining vector (usefull for plotting limit cycle)
 		if self.xTraining.size == 0:
@@ -838,7 +996,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 			if i < 3:
 				x = np.vstack((x, self.inputs[i]))
 			else:
-				if i%4 == 0:
+				if i%5 == 0:
 					x = np.vstack((x, self.inputs[i]))
 
 		y = np.mat(self.yTraining[self.iterationNumber])
@@ -865,15 +1023,22 @@ class ForceTrainingSimulation(TrainingSimulation):
 			w_prev = np.mat(self.w_prev)
 			e_p = w_prev.T * x - y.T
 			w = w_prev - p * x * e_p.T
-			#print "Error: " + str(np.mean(e_p))
+
+			# Fill the w error vector (usefull for plotting W convergence)
+			if self.weightMatrixDiff == None:
+				self.weightMatrixDiff = np.max(np.abs(w - w_prev))
+			else:
+				self.weightMatrixDiff = np.hstack((self.weightMatrixDiff, np.max(np.abs(w - w_prev))))
 
 			# Update output
 			yTrained =  np.transpose(w.T * x)
 			self.yTrained = np.vstack((self.yTrained, np.asarray(yTrained)))
 
-			# Update error
-			#error = y - yTrained
-			#self.error = np.vstack((self.error, error))
+			# Update error (usefull for plotting error evolution)
+			if self.error == None:
+				self.error = np.mean(np.abs(y - yTrained))
+			else:
+				self.error = np.hstack((self.error, np.mean(np.abs(y - yTrained))))
 
 		# Update iteration
 		self.trainIt += 1
@@ -921,7 +1086,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 		""" Nothing to do here as FORCE is an online method """
 
 		self.weightMatrix = self.w_prev
-		if self.wDistPlot:
+		if self.trainingPlot == "cont":
 			self.plotW()
 
 		# Start Closed-Loop mode
