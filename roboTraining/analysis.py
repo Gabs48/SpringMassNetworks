@@ -639,7 +639,7 @@ class Analysis(object):
 		if save: plt.savefig(filename + "_av.png", format='png', dpi=300)
 		plt.close()
 
-	def plot_noise_sim(self, index=0, filename="results_noise_sim", title=None, nPoints=75, window=15, show=False, save=True):
+	def plot_noise_sim(self, index=0, filename="results_noise_sim", title=None, nPoints=5, window=2, show=False, save=True):
 		"""Perform simulations for different values of noise with the best individu of a file 
 		and plot the results"""
 
@@ -657,7 +657,8 @@ class Analysis(object):
 			noise = noiseArr[i]
 			print(" -- Simulation " + str(i+1) + "/" + str(nPoints) + " : simulation noise value = " + str(noise) + " -- ")
 			bestIndex = np.argmax(self.y[index])
-			[score, distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, simNoise=noise)
+			[score, distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, simTime=100, \
+				simNoise=noise)
 
 		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
 		fig, ax = Plot.initPlot()
@@ -832,7 +833,7 @@ class Analysis(object):
 			return max_t, max_index1, max_index2
 
 	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, \
-		movie=True, pca=False, transPhase=0, trainingPhase=0.7, openPhase=0.35, alpha=0.001, beta=1, \
+		movie=True, pca=False, transPhase=0, trainingPhase=0.9, openPhase=0.1, alpha=0.0001, beta=1, \
 		pcaTitle="PCA", pcaFilename="pca", nrmse=False, simNoise=0, paramNoise=0, noiseType="rand"):
 		"""Render a simulation movie for a given individu"""
 
@@ -903,16 +904,12 @@ class Analysis(object):
 					trainingPlot="cont", alpha=alpha, beta=beta, outputFilename="control_n_" + \
 					str(self.n_nodes[index1]), outputFolder="nodes_CL_pic")
 			else:
+				#simul = TrainedSimulation(simulEnv, robot, filename="w.pkl")
 				simul = ForceTrainingSimulation(simulEnv, robot, \
 					transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
 					trainingPlot="all", alpha=alpha, beta=beta, outputFilename="training", \
 					outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
 					str(openPhase) + "_" + str(alpha) + "_" + str(beta))
-			# simul = TrainingSimulation(simulEnv, robot, \
-			# 	transPhase=transPhase, trainPhase=trainingPhase, \
-			# 	outputFilename="training", \
-			# 	outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
-			# 	str(openPhase) + "_" + str(alpha) + "_" + str(beta))
 		else:
 			if simNoise !=  0:
 				if noiseType == "impulse":
@@ -1296,98 +1293,6 @@ class Analysis(object):
 		if show: plt.show()
 		if save: plt.savefig(folder + filename + ".png", format='png', dpi=300)
 
-	def pareto(self, filename="results_pareto", show=False, save=True):
-		"""Perform specific analysis for a pareto batch"""
-		
-		print(" -- Pareto Analysis of folder " + self.path + " --")
-
-		dist = []
-		omega = []
-		ampli = []
-		omega_res = []
-		norm_dist = []
-		norm_power = []
-		k_spring = 100
-		mass = 1
-		sim_time = self.sim_time[0]
-		opt_type = self.opt_type[0]
-
-		# Fill values from loaded variables
-		for i in range(len(self.y)):
-
-			duplicate = False
-			assert self.sim_time[i] == sim_time, \
-				"For a meaningfull pareto graph, ensure the simulation times are the same for all data"
-			assert self.opt_type[i] == opt_type, \
-				"For a meaningfull pareto graph, ensure the optimization algorithms are the same for all data"
-
-			# Fetch iteration omega and ampl value
-			it_omega = None
-			for it in self.trainable[i]:
-				if it["name"] == "omega":
-					it_omega = it["max"]
-				elif it["name"] == "amplitude":
-					it_amplitude = it["max"]
-			if not it_omega:
-				it_omega = self.omega[i]
-
-			# If couple omega/ampli already existsn average with previous one
-			for j, om in enumerate(omega):
-				for k, am in enumerate(ampli):
-					if om == it_omega and \
-						am == it_amplitude and j == k:
-							dist[j].append(self.get_best_ind(index=i)[0])
-							duplicate = True
-
-			if duplicate == False:
-				dist.append([self.get_best_ind(index=i)[0]])
-				omega.append(it_omega)
-				ampli.append(it_amplitude)
-				omega_res.append(np.sqrt(k_spring / mass))
-
-		# Average points with multiple values
-		n_av = []
-		for i in range(len(dist)):
-			if  len(dist[i]) > 1:
-				n_av.append(len(dist[i]))
-			dist[i] = sum(dist[i]) / len(dist[i])
-		if len(n_av) != 0:
-			print(" -- Averaging " + str(len(n_av)) + " graph points with on average " + \
-				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
-
-		# Sort lists
-		ampli, omega, dist = (list(t) for t in zip(*sorted(zip(ampli, omega, dist))))
-
-		# Compute reference power and distance
-		max_omega = max(omega)
-		max_ampli = max(ampli)
-		n_ampli = len(ampli) / len(set(ampli))
-		n_omega = len(omega) / len(set(omega))
-		power_0 = max_omega * max_ampli ** 2
-		dist_0 = sum(dist[-n_ampli:len(ampli)])/ n_ampli
-
-		# Compute each point power and distance
-		for i in range(len(ampli)):
-			norm_power.append(ampli[i] ** 2 * omega[i] / power_0)
-			norm_dist.append(dist[i] / dist_0)
-		omega_sorted, norm_power, norm_dist = (list(t) for t in zip(*sorted(zip(omega, norm_power, norm_dist))))
-
-		# Plot distance as a fct of power in a loglog graph for different omega values
-		fig, ax = Plot.initPlot()
-		for i in range(len(set(omega_sorted))):
-			ax.loglog(norm_power[n_omega*i:n_omega*i+n_omega], norm_dist[n_omega*i:n_omega*i+n_omega], \
-				'.-', label="$\omega = $ " + num2str(omega_sorted[n_omega*i]/omega_res[i]) + " $\omega_{res}$")
-		for powerEff in np.logspace(-5, 5, 30):
-			x = np.array([5e-5, 2])
-			plt.plot(x, powerEff *x, 'k--', alpha = 0.5)
-		plt.title("Pareto curves for " + str(len(self.y[0])) + " iterations " + opt_type + \
-			" optimizations with " + num2str(sim_time) + "s simulations")
-		Plot.configurePlot(fig, ax, 'Relative Power','Relative Speed', legendLocation='lower right', size='small')
-		ax.set_xlim([5e-5, 2])
-		ax.set_ylim([1e-3, 5])
-		if show: plt.show()
-		if save: plt.savefig(filename + ".png", format='png', dpi=300)
-
 	def pareto_dist(self, filename="results_pareto_dist", show=False, save=True):
 		"""Perform specific analysis for a pareto dist batch"""
 		
@@ -1564,12 +1469,11 @@ class Analysis(object):
 
 		nodes = []
 		nrmse = []
-		abse = []
 		dist = []
 		dist_cl = []
 		sim_time = self.sim_time[0]
 		opt_type = self.opt_type[0]
-		sim_time_cl = 100
+		sim_time_cl = 200
 		max_it = 2
 
 		# Fill values from loaded variables
@@ -1588,38 +1492,34 @@ class Analysis(object):
 
 			# Find and eliminate duplicated experiments
 			for j, no in enumerate(nodes):
-				if no == it_nodes:
-					print " -- Performing the closed-loop experiment one time only for each node number." + \
-						" This experiment wont be taken into account: " + self.filenames[i]
-					duplicate = True
-					
-			if duplicate == False:
-				for k in range(0, max_it):
+				if no[0] == it_nodes:
 					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=1,rc=True, nrmse=True, alpha=0.0001, beta=1, transPhase=0, trainingPhase=0.9)
-					if k == 0:
-						nodes.append([it_nodes])
-						nrmse.append([err[0]])
-						abse.append([err[1]])
-						dist_cl.append([d])
-						dist.append([it_dist])
-					else:
-						nodes[i].append(it_nodes)
-						nrmse[i].append(err[0])
-						abse[i].append(err[1])
-						dist_cl[i].append(d)
-						dist[i].append(it_dist)
+						openPhase=0.1, rc=True, nrmse=True, alpha=0.0001, beta=1, transPhase=0, trainingPhase=0.9)
+					nodes[i].append(it_nodes)
+					nrmse[i].append(err[0])
+					dist_cl[i].append(d)
+					dist[i].append(it_dist)
+					duplicate = True	
+			if duplicate == False:
+					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
+						openPhase=0.1, rc=True, nrmse=True, alpha=0.0001, beta=1, transPhase=0, trainingPhase=0.9)
+					nodes.append([it_nodes])
+					nrmse.append([err[0]])
+					dist_cl.append([d])
+					dist.append([it_dist])
+
 
 		# Average points
 		n_av = 0
 		nrmse_std = []
 		dist_cl_std = []
+		dist_std = []
 		for i in range(len(dist)):
 			n_av += len(dist[i])
 			nrmse_std.append(np.std(np.array(nrmse[i])))
 			dist_cl_std.append(np.std(np.array(dist_cl[i]) / sim_time_cl * sim_time))
+			dist_std.append(np.std(np.array(dist[i])))
 			nrmse[i] = sum(nrmse[i]) / len(nrmse[i])
-			abse[i] = sum(abse[i]) / len(abse[i])
 			dist_cl[i] = sum(dist_cl[i]) / len(dist_cl[i]) / sim_time_cl * sim_time
 			dist[i] = sum(dist[i]) / len(dist[i])
 			nodes[i] = sum(nodes[i]) / len(nodes[i])
@@ -1629,8 +1529,8 @@ class Analysis(object):
 				num2str(float(n_av)/len(nodes)) + " data sets for each --")
 
 		# Sort lists
-		nodes, nrmse, abse, dist, dist_cl, nrmse_std, dist_cl_std = \
-			(list(t) for t in zip(*sorted(zip(nodes, nrmse, abse, dist, dist_cl, nrmse_std, dist_cl_std))))
+		nodes, nrmse, dist, dist_cl, nrmse_std, dist_std, dist_cl_std = \
+			(list(t) for t in zip(*sorted(zip(nodes, nrmse, dist, dist_cl, nrmse_std, dist_std, dist_cl_std))))
 
 		# Plot nrmse as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
@@ -1642,20 +1542,10 @@ class Analysis(object):
 			print(" -- Print NRMSE in " + folder + filename + "_nrmse.png --")
 			plt.savefig(folder + filename + "_nrmse.png", format='png', dpi=300)
 
-		# Plot abse as a fonction of the nodes number
-		fig, ax = Plot.initPlot()
-		ax.plot(nodes, abse, ".-", linewidth=1.5, label="Max Absolute error")
-		plt.title("Absolute error evolution for nodes number")
-		Plot.configurePlot(fig, ax, 'Nodes','Absolute error', legendLocation='lower right',\
-		 size='small')
-		if show: plt.show()
-		if save:
-			print(" -- Print ABSE in " + folder + filename + "_abse.png --")
-			plt.savefig(folder + filename + "_abse.png", format='png', dpi=300)
-
 		# Plot distance as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
-		ax.plot(nodes, dist, ".-", linewidth=1.5, color=self._get_style_colors()[0], label="Open loop distance")
+		ax.errorbar(nodes, dist, yerr=dist__std, linewidth=1.5,  fmt=".-", \
+			color=self._get_style_colors()[0], label="Open loop distance")
 		ax.errorbar(nodes, dist_cl, yerr=dist_cl_std, linewidth=1.5, fmt=".-", \
 			color=self._get_style_colors()[1], label="Closed-loop distance")
 		plt.title("Travelled distance in function of nodes number")

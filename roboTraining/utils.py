@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import math
 import neurolab as nl
+import pickle
+import time
 
 
 """ extra functionalities needed by other modules in the roboTraining package """
@@ -129,7 +131,6 @@ def number2Array(val, length):
 
 	return np.array(l)
 
-
 def number2List(mat):
 	""" Convert a matrix with one unique number to a list of one number
 	"""
@@ -240,11 +241,31 @@ def mkdir_p(path):
 		else:
 			raise
 
+def timestamp():
+	""" Create a timestap string """
+
+	return time.strftime("%Y%m%d-%H%M%S", time.localtime())
+
+def dump_pickle(data, filename):
+	""" Dumps data to a pkl file """
+
+	if not filename.endswith('.pkl'):
+		raise ValueError('Pickle files should end with .pkl, but got %s instead' % path)
+
+	with open(filename, 'wb') as pkl_file:
+		pickle.dump(data, pkl_file, pickle.HIGHEST_PROTOCOL)
+
+def load_pickle(filename):
+	""" Load data from a pickle file """
+
+	with open(filename, 'rb') as pkl_file:
+		return pickle.load(pkl_file)
+
 class Save(object):
 	""" general class for saving"""
 	configname = 'config'
 
-	def __init__(self, object, name, directory="default", timestamp = True,floatFormat = '.5f'):
+	def __init__(self, object, name, directory="default", timestamp = True, floatFormat = '.5f'):
 		self.object = object
 		self.name = name
 		self.directory = directory

@@ -1,4 +1,5 @@
 from collections import deque
+import copy
 import itertools
 import numpy as np
 import matplotlib
@@ -421,87 +422,6 @@ class NoisyImpulseVerletSimulation(VerletSimulation):
 			self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold)
 			return self.Aold
 
-class ReservoirSimulation (VerletSimulation):
-	""" perform reservoir computing on MSNs """
-	def __init__(self, simulEnv, robot, connArray, sampleInterval, targetFunction, relNoise, mapping = LinearMap(), delayTime = 0, delayStep = 1):
-		super(ReservoirSimulation, self).__init__(simulEnv, robot)
-		self.mapping = mapping
-		self.connArray = connArray
-		self.dimReservoir = len(connArray)
-		self.delayTime = delayTime
-		self.delayStep = delayStep
-
-		for connectionNumber in connArray:
-			assert connectionNumber < robot.getNoConnections()
-		self.sampleInterval = sampleInterval
-		self.targetFunction = targetFunction
-		self.relNoise = relNoise
-		try:
-			self.dimTarget = len(targetFunction(robot))
-		except:
-			self.dimTarget = 1
-		self.sampleNum =  int(self.simulEnv.simulationLength / self.sampleInterval )
-
-		self.reservoirArray = np.zeros((self.dimReservoir, self.sampleNum))
-		self.targetArray = np.zeros((self.dimTarget, self.sampleNum))
-
-	def process(self):
-		if (self.iterationNumber % self.sampleInterval == 0):
-			countSample = int(self.iterationNumber / self.sampleInterval)
-			# read reservoir values
-			for i in range(self.dimReservoir):
-				connectionNumber = self.connArray[i]
-				noise  = 1
-				if self.relNoise > 0:
-					noise = np.random.normal(1, self.relNoise)
-				self.reservoirArray[i, countSample] = self.robot.getDistance(connectionNumber) * noise
-			# determine target values
-			self.targetArray[:, countSample] = self.targetFunction(self.robot)
-
-	def map(self, trainFraction = 0.5):
-
-		# add delayline data 
-		effNoSamples = self.sampleNum - self.delayTime * self.delayStep
-		input = np.zeros(( 0, effNoSamples ))
-		target = self.targetArray[:, self.delayTime * self.delayStep : ]
-		for i in range(self.delayTime + 1):
-			input = np.vstack((input, self.reservoirArray[:, i * self.delayStep : effNoSamples + i * self.delayStep]))
-
-		self.trainSampleNum = int(effNoSamples * trainFraction)
-		self.testSampleNum = effNoSamples- self.trainSampleNum
-
-		# Training (mapping can be a NeuralNetwork or a LinearMap instance)
-		self.trainSamples = input[:, 0 : self.testSampleNum]
-		self.trainTarget = target[:, 0 : self.testSampleNum]
-		self.weights, self.trainOutput, self.trainError, self.trainRelError = self.mapping.train(self.trainSamples, self.trainTarget)
-		
-		# Testing
-		self.testSamples = input[:, self.testSampleNum :]
-		self.testTarget = target[:, self.testSampleNum :]
-		self.testOutput, self.testError, self.testRelError = self.mapping.test( self.testSamples, self.testTarget)
-
-	def performanceMetric(self):
-		self.map()
-		return self.testError
-
-	def plot(self, targetnum = 0, block = False):
-		noTrain = len(self.trainTarget[targetnum])
-		noTest = len(self.testTarget[targetnum])
-
-		x1= np.arange(noTrain) * self.simulEnv.timeStep
-		x2 = (noTrain + np.arange(noTest)) * self.simulEnv.timeStep
-
-		fig, ax = Plot.initPlot()
-		ax.set_title(r'$ \epsilon_{train} = %(num1)s \ \ \ \epsilon_{test} = %(num2)s $' % {'num1': num2str(self.trainRelError), 'num2': num2str(self.testRelError)}, fontsize = 30)
-		ax.plot(np.hstack((x1,x2)), np.hstack((self.trainTarget[targetnum], self.testTarget[targetnum])), label = "target", linewidth = 3, alpha = 0.5)
-		ax.plot(x1, self.trainOutput[targetnum], 'k-', label = "train")
-		ax.plot(x2, self.testOutput[targetnum], 'r.', label = "test")
-		ax.legend()
-		Plot.configurePlot(fig,ax,"time","value", legendLocation = 'lower center')
-		plt.show(block = block)
-
-		return fig, ax
-
 class TrainingSimulation(VerletSimulation):
 	""" Extend VerletSimulation and train an output layer to produce a structured patterns
 	The time is divided in five steps as described in the process method.
@@ -681,6 +601,7 @@ class TrainingSimulation(VerletSimulation):
 		if it == self.simulEnv.simulationLength - 1:
 			#print "5. End of simulation. It: " + str(it)
 			self.runStep()
+			self.save() ## If save??
 			if self.trainingPlot == "all":
 				self.plot(n=6000)
 				self.plotLimitCycle()
@@ -802,6 +723,14 @@ class TrainingSimulation(VerletSimulation):
 		if save: plt.savefig(self.outputFolder + "/" + self.outputFilename + "_w_hist.png", format='png', dpi=300)
 		plt.close()
 
+	def save(self, filename=None):
+		""" Save the weights matrix for further simulations """
+
+		if filename == None:
+			filename = "weight_matrix_" + timestamp() + ".pkl"
+
+		dump_pickle(self, filename)
+
 	def plotWDiff(self, n=None, show=False, save=True):
 		""" Plot evolution of the weight matrix differences """
 		
@@ -916,7 +845,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Algorithm constants
 		self.alpha = alpha
 		self.beta = beta
-		self.hist = 3
+		self.hist = 5
 
 		# Algorithm matrices
 		self.trainIt = 0
@@ -937,7 +866,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 
 		x = np.mat(self.inputs[0])
 		for i in range(self.hist-1):
-			if i < 3:
+			if i < 5:
 				x = np.vstack((x, self.inputs[i]))
 			else:
 				if i%5 == 0:
@@ -993,7 +922,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Get current learning algo inputs and supervized ouput
 		x = np.mat(self.inputs[0])
 		for i in range(self.hist-1):
-			if i < 3:
+			if i < 5:
 				x = np.vstack((x, self.inputs[i]))
 			else:
 				if i%5 == 0:
@@ -1094,3 +1023,77 @@ class ForceTrainingSimulation(TrainingSimulation):
 		#self.robot.control.closeLoop()
 
 		return
+
+class TrainedSimulation(VerletSimulation):
+	""" Run a simulation of a previously trained class based on the training matrix"""
+
+	def __init__(self, simulEnv, robot, filename=None, reset=False, transPhase=0.5):
+		""" Init class """
+
+		super(TrainedSimulation, self).__init__(simulEnv, robot, reset=reset)
+
+		self.filename = filename
+
+		self.N = 0
+		self.fifo_size = None
+		self.x_fifo = []
+		self.y_hist = np.array([])
+		self.weightMatrix = None
+		self._get_data()
+
+		self.transPhase = transPhase
+		self.simulationTime =  self.simulEnv.timeStep * self.simulEnv.simulationLength
+		self.transLength = int(np.floor(self.transPhase * self.simulEnv.simulationLength))
+
+	def _get_data(self):
+		""" Fill the weight matrix given a file """
+
+		sim = load_pickle(self.filename)
+		self.N = copy.copy(sim.weightMatrix)
+		self.fifo_size = copy.copy(sim.hist)
+		self.weightMatrix = copy.copy(sim.weightMatrix)
+
+	def process(self):
+		""" Compute driving signals and input them to the robot """
+
+		# Get current acceleration
+		x_it = self.Aold.getArray().T
+
+		# Fill a FIFO with accelerations
+		if not self.x_fifo:
+			self.N = x_it.shape[0]
+			for i in range(self.fifo_size):
+				self.x_fifo.append(np.zeros((self.N, 1)))
+		self.x_fifo.pop(0)
+		self.x_fifo.append(x_it)
+
+		# From FIFO of accelerations, construct x vector
+		x = np.mat(self.x_fifo[0])
+		for i in range(self.fifo_size-1):
+			x = np.vstack((x, self.x_fifo[i]))
+
+		# Compute new estimation
+		y_est = np.asarray(self.weightMatrix.T * x).T
+
+		# Store estimation in vector
+		if self.y_hist.size == 0:
+			self.y_hist = y_est
+		else:
+			self.y_hist = np.vstack((self.y_hist, y_est))
+
+		# Pass the signal estimation to the controller to close the loop
+		stepInput = array2ModFactor(y_est, self.robot.morph.connections)
+		self.robot.control.setStepInput(stepInput)
+
+		print "Distance: " + str(self.robot.state.pos.getArray()[0, 0])
+		
+		# start Closed-Loop mode
+		if self.iterationNumber  > self.transLength:
+			fig, ax = Plot.initPlot()#proj="3d")
+			ax.plot(self.y_hist[:, 0])
+			plt.savefig("a.png", format='png', dpi=300)
+			self.robot.control.closeLoop(0, beta=1)
+
+#class TrainedNoisySimulation(TrainedSimulation):
+# Inherit from two class?
+	""" Run a simulation of a previously trained class based on the training matrix"""
