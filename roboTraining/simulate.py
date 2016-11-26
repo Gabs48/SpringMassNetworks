@@ -417,6 +417,7 @@ class NoisyImpulseVerletSimulation(VerletSimulation):
 				self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold, impulsenoise=self.noiseArr)
 				self.noiseIt += 1
 				return self.Aold
+			print "here", timeStep*self.iterationNumber
 
 		if self.noiseIt == 0:
 			self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold)
@@ -583,7 +584,7 @@ class TrainingSimulation(VerletSimulation):
 
 		# Training phase (add data to trianing vector)
 		if it >= self.transLength and it < (self.transLength + self.trainLength - 1):
-			#print "2. Training phase. It: " + str(it)
+			print "2. Training phase. It: " + str(it)
 			self.trainStep()
 
 		# Training time (linear regression for output neurons)
@@ -605,8 +606,10 @@ class TrainingSimulation(VerletSimulation):
 			if self.trainingPlot == "all":
 				self.plot(n=6000)
 				self.plotLimitCycle()
+				self.plotWDiff(-self.trainLength*2/3)
+				self.plotError(-self.trainLength+50)
 			if self.trainingPlot == "cont":
-				self.plot(n=3000, comp=1)
+				self.plot(n=self.trainLength+50, comp=1)
 				self.plotWDiff(-self.trainLength*2/3)
 				self.plotError(-self.trainLength+50)
 
@@ -620,6 +623,10 @@ class TrainingSimulation(VerletSimulation):
 	def nrmse(self, arr1, arr2):
 		""" Compute NRMSE between two matrices """
 
+		# Center signals around 0
+		arr1 = arr1 - 1
+		arr2 = arr2 - 1
+		
 		rmse = np.sqrt(self.mse(arr1, arr2))
 		max_val = max(np.max(arr1), np.max(arr2))
 		min_val = min(np.min(arr1), np.min(arr2))
@@ -845,10 +852,11 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Algorithm constants
 		self.alpha = alpha
 		self.beta = beta
-		self.hist = 5
+		self.hist = 10
 
 		# Algorithm matrices
 		self.trainIt = 0
+		self.a = 0
 		self.w = None
 		self.p = None
 		self.error = None
@@ -857,8 +865,13 @@ class ForceTrainingSimulation(TrainingSimulation):
 	def runStep(self):
 		""" Run the neuron for a given step """
 
+		# Get robot current state
+		a_it =  self.Aold.getArray().T
+		da_it = a_it - self.a
+		x_it = np.vstack((a_it, da_it))
+		self.a = a_it
+
 		# Get input vector
-		x_it = self.Aold.getArray().T
 		if not self.inputs:
 			raise('Error: No trianing before running')
 		self.inputs.pop(0)
@@ -866,11 +879,11 @@ class ForceTrainingSimulation(TrainingSimulation):
 
 		x = np.mat(self.inputs[0])
 		for i in range(self.hist-1):
-			if i < 5:
-				x = np.vstack((x, self.inputs[i]))
-			else:
-				if i%5 == 0:
-					x = np.vstack((x, self.inputs[i]))
+			#if i < 4:
+			x = np.vstack((x, self.inputs[i]))
+			#else:
+			#if i%4 == 0:
+			#	x = np.vstack((x, self.inputs[i]))
 
 		# Compute new estimation
 		y_est = np.asarray(self.w_prev.T * x).T
@@ -894,14 +907,17 @@ class ForceTrainingSimulation(TrainingSimulation):
 		""" Add training data for a given step """
 
 		# Get robot current state
-		x_it =  self.Aold.getArray().T
+		a_it =  self.Aold.getArray().T
+		da_it = a_it - self.a
+		x_it = np.vstack((a_it, da_it))
+		self.a = a_it
 
 		# Create noisy vector
 		x_it_av = np.mean(np.abs(x_it))
 		noise_k_it = 1 - 2 * self.trainIt / float(self.trainLength)
 		if noise_k_it < 0:
 			noise_k_it = 0
-		noise_it = 0.1 * noise_k_it * x_it_av * np.random.rand(x_it.shape[0], x_it.shape[1])
+		noise_it = 0#.1 * noise_k_it * x_it_av * np.random.rand(x_it.shape[0], x_it.shape[1])
 
 		# If the inputs fifo hasen't been created, do it
 		if not self.inputs:
@@ -922,13 +938,13 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Get current learning algo inputs and supervized ouput
 		x = np.mat(self.inputs[0])
 		for i in range(self.hist-1):
-			if i < 5:
-				x = np.vstack((x, self.inputs[i]))
-			else:
-				if i%5 == 0:
-					x = np.vstack((x, self.inputs[i]))
+			#if i < 4:
+			x = np.vstack((x, self.inputs[i]))
+			#else:
+			#if i%4 == 0:
+			#	x = np.vstack((x, self.inputs[i]))
 
-		y = np.mat(self.yTraining[self.iterationNumber])
+		y = np.mat(self.yTraining[self.iterationNumber+1])
 
 		# If first iteration, init with random weights
 		if self.trainIt == 0:
@@ -949,6 +965,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 
 			# Update weight matrix
 			#e_prev = np.mat(self.error[-1,:])
+			l = (p * x) / (1 + x.T * p * x)
 			w_prev = np.mat(self.w_prev)
 			e_p = w_prev.T * x - y.T
 			w = w_prev - p * x * e_p.T
@@ -1015,7 +1032,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 		""" Nothing to do here as FORCE is an online method """
 
 		self.weightMatrix = self.w_prev
-		if self.trainingPlot == "cont":
+		if self.trainingPlot == "cont" or self.trainingPlot == "all" :
 			self.plotW()
 
 		# Start Closed-Loop mode

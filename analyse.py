@@ -6,7 +6,7 @@ from roboTraining.analysis import *
 if __name__ == "__main__":
 
 	# Create Analysis object and load results folder
-	an = Analysis(root="paper", folder="cl")
+	an = Analysis(root="paper", folder="cl/Machine-8/20161123_215410")
 	an.load()
 
 	# General plots
@@ -19,9 +19,10 @@ if __name__ == "__main__":
 	# an.plot_all_params()
 
 	# Simulate best individu
-	#score, index1, index2 = an.get_best_ind()
-	#print index1, index2
-	# an.simulate_ind(index1, index2, simTime=1, movie=True, simNoise=0, rc=False)
+	score, index1, index2 = an.get_best_ind()
+	for a in [0.0001]:#, 0.001, 0.01, 0.1, 1]:
+		an.simulate_ind(index1, index2, simTime=100, movie=False, simNoise=0, \
+			alpha=a, rc=True, openPhase=0.3, beta=0.9, trainingPhase=0.99)
 
 	# Simtime analysis
 	# an.simtime()
@@ -38,8 +39,8 @@ if __name__ == "__main__":
 	#an.freq()
 
 	# Nodes number value analysis
-	# an.nodes()
-	an.nodes_CL()
+	#an.nodes()
+	#an.nodes_CL()
 
 	# Noise analysis
 	# an.plot_all_noise_sims()

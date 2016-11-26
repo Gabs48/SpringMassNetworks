@@ -861,6 +861,29 @@ class SineControl(TimeControl):
 
 		return np.sum( (springLengths * self.amplitude) ** 2 * self.omega * springConstants) / 2
 
+class NoisySineControl(SineControl):
+	""" Add some noise of the controller signals to ensure robustness towards this in optimization"""
+
+	uniform2pi = lambda shape: np.random.uniform(0, 2*np.pi, shape)
+	param = ["amplitude", "phase", "omega"]
+
+	def __init__(self, morph, amplitude=0.2, phase=uniform2pi, omega=2*np.pi, noise=0.2):
+		""" Pass the init to parent and add a noise parameter """
+
+		super(NoisySineControl, self).__init__(morph, amplitude=amplitude, \
+			phase=phase, omega=omega)
+
+		self.noise = noise
+		self.ampli_max = np.max(self.amplitude)
+		self.sigma = self.noise * self.ampli_max
+
+	def modulationFactorTime(self, time):
+		""" Return rest length modulation factor """
+
+		s = np.random.normal(0, self.sigma, self.amplitude.shape)
+		s[self.amplitude==0] = 0
+		return 1 + (s + self.amplitude) * np.sin(self.omega * time + self.phase)
+
 class ClosedLoopSineControl(SineControl):
 	""" This class extend can be used for controlling the robot in closed-loop:
 	 - If the CL parameter is se to False, it acts in open loop exactly like its parent class
@@ -913,6 +936,8 @@ class ClosedLoopSineControl(SineControl):
 
 			if self.closingStep < self.closedLength:
 				factor = self.beta * self.closingStep / self.closedLength
+				if factor > 1:
+					factor = 1
 				modFactor = factor * cl + (1 - factor) * ol
 			else:
 				modFactor = cl

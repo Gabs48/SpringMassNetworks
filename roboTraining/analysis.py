@@ -833,7 +833,7 @@ class Analysis(object):
 			return max_t, max_index1, max_index2
 
 	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, \
-		movie=True, pca=False, transPhase=0, trainingPhase=0.9, openPhase=0.1, alpha=0.0001, beta=1, \
+		movie=True, pca=False, transPhase=0, trainingPhase=0.9, openPhase=0.1, alpha=0.0001, beta=0.95, \
 		pcaTitle="PCA", pcaFilename="pca", nrmse=False, simNoise=0, paramNoise=0, noiseType="rand"):
 		"""Render a simulation movie for a given individu"""
 

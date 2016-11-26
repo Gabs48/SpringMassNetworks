@@ -54,9 +54,15 @@ class Experiment(object):
 		morph = SpringMorphology(mass=self.mass, noNodes=self.noNodes, spring=self.spring, \
 			noNeighbours=self.noNeighbours, environment=env)
 		if self.trainOmega:
-			control = SineControl(morph)
+			if self.noisy:
+				control = NoisySineControl(morph)
+			else:
+				control = SineControl(morph)
 		else:
-			control = SineControl(morph, omega=self.omega)
+			if self.noisy:
+				control = NoisySineControl(morph, omega=self.omega)
+			else:
+				control = SineControl(morph, omega=self.omega)
 		robot = Robot(morph, control)
 		plotter = Plotter(plot=False);
 		simulenv = SimulationEnvironment(timeStep=self.simTimeStep, simulationLength=int(self.simTime/self.simTimeStep), \
