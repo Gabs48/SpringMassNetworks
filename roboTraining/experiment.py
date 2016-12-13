@@ -20,7 +20,7 @@ class Experiment(object):
 	def __init__(self, fileName_="CMA", folderName_="Data", noNodes_=20, spring_=100, noNeighbours_=3, plot_=False, \
 		simTimeStep_=0.005, simTime_=20, perfMetr_="powereff", controlPlot_=False, maxIter_=10000, omega_=2*np.pi*2, \
 		optMethod_="CMA", maxAmplitude_=0.25, popSize_=30, mass_=1, refPower_=1000, refDist_=1000, maxSpring_=200, \
-		noisy_=False, trainOmega_=True):
+		maxDamp_=30, trainDamp_=False, noisy_=False, trainOmega_=True):
 		"""Initialize the variables lists"""
 
 		self.fileName = fileName_
@@ -45,6 +45,8 @@ class Experiment(object):
 		self.maxSpring = maxSpring_
 		self.noisy = noisy_
 		self.trainOmega = trainOmega_
+		self.trainDamp = trainDamp_
+		self.maxDamp = maxDamp_
 
 	def run(self):
 		"""Run the experiment"""
@@ -73,6 +75,9 @@ class Experiment(object):
 		trainscheme = TrainingScheme()
 		if self.trainOmega:
 			trainscheme.createTrainVariable("base_omega", 0, self.omega)
+		if self.trainDamp:
+			print "a"
+			trainscheme.createTrainVariable("damping", 0, self.maxDamp)
 		trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
 		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)
 		trainscheme.createTrainVariable("spring", 0, self.maxSpring)

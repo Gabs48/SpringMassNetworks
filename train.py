@@ -229,7 +229,7 @@ if __name__ == "__main__":
 			fileName = "Machine-" + str(rank)
 
 			e = Experiment(fileName_=fileName, folderName_="CMA", simTime_=simTime, maxIter_=trainingIt, optMethod_="CMA", \
-				noisy_=True, refDist_=simTime*10)
+				noisy_=True, refDist_=simTime*10, trainDamp_=True)
 			e.run()
 
 	else:
