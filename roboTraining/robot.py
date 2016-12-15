@@ -12,8 +12,7 @@ import matplotlib.cm as cmx
 import matplotlib.colorbar as clb
 import itertools
 import utils
-from utils import SpaceList, list2SquareMatrix, list2PosMatrix, findIndex
-
+from utils import *
 """robot_Simulation contains the required classes for defining and manipulating the essential robot parameters and states"""
 # EXTEND non linear springs morphology (refactor methods to morphology)
 # EXTEND non sine control of morphology
@@ -905,6 +904,7 @@ class ClosedLoopSineControl(SineControl):
 		self.closingLength = 0
 		self.closedLoopLength = 0
 		self.closingStep = 0
+		self.morph = morph
 
 	def closeLoop(self, closedLength, beta=0.1):
 		""" Call this function to close the loop """
@@ -913,10 +913,10 @@ class ClosedLoopSineControl(SineControl):
 		self.beta = float(beta)
 		self.closedLength = closedLength
 
-	def setStepInput(self, stepInput):
+	def setStepInput(self, predSig):
 		""" Set the controller output for the next time step from the simulation outputs """
 
-		self.stepInput = stepInput
+		self.stepInput = array2ModFactor(predSig, self.morph.connections)
 
 	def modulationFactorTime(self, time):
 		""" Redefine mod factor method in closed-loop"""
@@ -929,6 +929,8 @@ class ClosedLoopSineControl(SineControl):
 		# If closed-loop mode
 		else:
 			ol = super(ClosedLoopSineControl, self).modulationFactorTime(time)
+
+			#print str(time) + " Getting ol control signal"
 			cl = self.stepInput
 
 			if self.closingStep == 0:
@@ -943,6 +945,7 @@ class ClosedLoopSineControl(SineControl):
 				modFactor = cl
 
 			self.closingStep += 1
+			#print str(time) + " Mixing and applying cl+ol control signal " 
 			return modFactor
 
 class GenerativeControl(Control):

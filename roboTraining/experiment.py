@@ -76,7 +76,6 @@ class Experiment(object):
 		if self.trainOmega:
 			trainscheme.createTrainVariable("base_omega", 0, self.omega)
 		if self.trainDamp:
-			print "a"
 			trainscheme.createTrainVariable("damping", 0, self.maxDamp)
 		trainscheme.createTrainVariable("phase", 0, 2 * np.pi)
 		trainscheme.createTrainVariable("amplitude", 0, self.maxAmplitude)

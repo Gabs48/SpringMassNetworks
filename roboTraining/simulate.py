@@ -1,5 +1,6 @@
 from collections import deque
 import copy
+import datetime
 import itertools
 import numpy as np
 import matplotlib
@@ -9,6 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import os
+from scipy import signal
 from robot import Robot
 from utils import *
 import sys
@@ -38,7 +40,7 @@ class Plotter(object):
 			self.startPlot = startPlot
 		
 			self.pauseTime = pauseTime
-			self.fig = plt.subplots(figsize=(10.88, 6.88), dpi=100, )
+			self.fig = plt.subplots(figsize=(10.88, 4.88), dpi=300, )
 			if text:
 				self.text = plt.text(0.2,0.9,"",ha='center', va = 'center', transform=plt.gca().transAxes)#Left Align Text
 			else:
@@ -70,7 +72,7 @@ class Plotter(object):
 		""" update properties of instance based on x and y coordinates and connections matrix"""
 		if self.init:
 			self.init = False;
-			plt.ylim(-self.border, self.border+ 3 * np.max(ypos))
+			plt.ylim(-self.border, self.border + 1.2 * np.max(ypos))
 			self.xplotwidth = max(xpos)+self.border - (min(xpos)-self.border)
 		
 		"""all_lines = np.dstack((np.tile(xpos[:, np.newaxis], (1, len(xpos))),
@@ -103,11 +105,11 @@ class Plotter(object):
 					stressRatio = robot.stressRatio()
 					plt.cla()
 					plt.fill_between([-1e8, 1e8], -20, 0, facecolor='gray', edgecolor='gray')
-					self.text = plt.text(0.2,0.9,"",ha='center', va = 'center', transform=plt.gca().transAxes) #Left Align Text
+					self.text = None#plt.text(0.2,0.9,"",ha='center', va = 'center', transform=plt.gca().transAxes) #Left Align Text
 					if self.init:
 						self.init = False;
 						self.maxy = np.max(ypos)
-					plt.ylim(-self.border, self.border + 3 * self.maxy)
+					plt.ylim(-self.border, self.border + 1.2 * self.maxy)
 					self.xplotwidth = max(xpos) + self.border - (min(xpos) - self.border)
 
 					for i,j in itertools.product(range(len(xpos)), range(len(ypos))):
@@ -279,9 +281,8 @@ class Simulation(object):
 		""" Euler integration for a single time step"""
 		A = self.robot.computeAcceleration()
 		V = self.robot.getVelocity()
-		timeStep = self.simulEnv.timeStep
 		self.iterationNumber+=1
-		return self.robot.changeState(timeStep, V, A) 
+		return self.robot.changeState(self.simulEnv.timeStep, V, A) 
 
 	def runSimulation(self):
 		""" Runs a simulation over a number of iterations and returns the distance travelled"""
@@ -351,9 +352,11 @@ class VerletSimulation(Simulation):
 
 		self.process()
 		V = self.robot.getVelocity()
+		#print str(self.robot.state.currentTime) + " Updating the states of iteration " + str(self.iterationNumber)
 		timeStep = self.simulEnv.timeStep
-		self.iterationNumber+=1
 		self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold)
+		self.iterationNumber+=1
+		#print str(self.robot.state.currentTime) + " Updating iteration number: " + str(self.iterationNumber)
 		return self.Aold
 
 	def getTime(self):
@@ -366,6 +369,7 @@ class NoisyVerletSimulation(VerletSimulation):
 		super(NoisyVerletSimulation, self).__init__(simulEnv, robot, reset = reset)
 
 	def simulateStep(self):
+
 		self.process()
 		V = self.robot.getVelocity()
 		timeStep = self.simulEnv.timeStep
@@ -389,6 +393,7 @@ class NoisyImpulseVerletSimulation(VerletSimulation):
 		self.noiseIt = 0
 
 	def simulateStep(self):
+
 		self.process()
 		V = self.robot.getVelocity()
 		timeStep = self.simulEnv.timeStep
@@ -417,7 +422,6 @@ class NoisyImpulseVerletSimulation(VerletSimulation):
 				self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold, impulsenoise=self.noiseArr)
 				self.noiseIt += 1
 				return self.Aold
-			print "here", timeStep*self.iterationNumber
 
 		if self.noiseIt == 0:
 			self.Aold = self.robot.changeStateVerlet(timeStep, V, self.Aold)
@@ -494,20 +498,19 @@ class TrainingSimulation(VerletSimulation):
 		# y = np.sin(self.omega * self.timeArray).reshape(-1,1)
 
 		# Real input values
-		y = np.array([])
+
+		y = []
 		for t in self.timeArray:
 			line = connections2Array(self.robot.control.modulationFactorTime(t), self.robot.morph.connections)
-			if y.size == 0:
-				y = line
-			else:
-				y = np.vstack((y, line))
+			y.append(line)
 
-		return y
+		return np.array(y)
 
 	def neuron_fct(self, x):
 		""" The transition function of the output neuron """
 
-		return tanh(x)
+		y =  1 + np.tanh(x)
+		return y
 
 	def trainStep(self):
 		""" Add training data for a given step """
@@ -606,7 +609,7 @@ class TrainingSimulation(VerletSimulation):
 			if self.trainingPlot == "all":
 				self.plot(n=6000)
 				self.plotLimitCycle()
-				self.plotWDiff(-self.trainLength*2/3)
+				self.plotWDiff(-self.trainLength)
 				self.plotError(-self.trainLength+50)
 			if self.trainingPlot == "cont":
 				self.plot(n=self.trainLength+50, comp=1)
@@ -686,6 +689,21 @@ class TrainingSimulation(VerletSimulation):
 		if comp == None:
 			comp = self.O
 
+		plt.plot(self.timeArray, self.acc, "b-")
+		plt.title("Node 1 acceleration evolution")
+		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_acc.png", format='png', dpi=300)
+		plt.close()
+
+		plt.plot(self.timeArray, self.pos, "")
+		plt.title("Node 1 position evolution")
+		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_pos.png", format='png', dpi=300)
+		plt.close()
+
+		plt.plot(self.timeArray, self.speed, "")
+		plt.title("Node 1 speed evolution")
+		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_speed.png", format='png', dpi=300)
+		plt.close()
+
 		for i in range(comp):
 
 			# Compute error vector
@@ -736,7 +754,7 @@ class TrainingSimulation(VerletSimulation):
 		if filename == None:
 			filename = "weight_matrix_" + timestamp() + ".pkl"
 
-		dump_pickle(self, filename)
+		#dump_pickle(self, filename)
 
 	def plotWDiff(self, n=None, show=False, save=True):
 		""" Plot evolution of the weight matrix differences """
@@ -852,24 +870,99 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Algorithm constants
 		self.alpha = alpha
 		self.beta = beta
-		self.hist = 10
+		self.hist = 2
+		self.eWin = 5
 
 		# Algorithm matrices
 		self.trainIt = 0
 		self.a = 0
+		self.po = 0
+		self.v = 0
 		self.w = None
 		self.p = None
 		self.error = None
 		self.yTrained = np.array([])
+		self.acc = np.array([])
+		self.accf = np.array([])
+		self.speed = np.array([])
+		self.pos = np.array([])
+
+		# Create actuator threshold and low pass filtering
+		self.fc = 2 # Hz
+		## REPLACE THOSE ABSOLUTE VALUES
+		self.thh = 1 + 0.5  # Higher value of thresholding
+		self.thl = 1 - 0.5 # Lower value for thresholding
+		self.order = 60 # Filter order
+		self.buffLen = 3 * self.order # Signal buffer length for filtering
+		self.filt_b = signal.firwin(self.order, self.fc * self.simulEnv.timeStep)
+		self.filt_a = [1]
+		#signal.butter(self.order, self.fc * self.simulEnv.timeStep, 'low')
+		self.filt_fifo = [] # Create a fifo
+		self.filt_fifo_2 = [] # Create a fifo
+
+	def physActFilter(self, predSig):
+		"""
+		Apply filtering and thresholding to model physical actuation properties and 
+		avoid numerical instabilities
+		"""
+		# Threshold current value
+		#print "Predicted signal: " + str(predSig)
+		thSig = np.clip(predSig, self.thl, self.thh)
+		#print "Thresholded signal: " + str(thSig)
+
+		# Get prev time_steps and convert to numpy matrix
+		if not self.filt_fifo:
+			for i in range(self.buffLen):
+				self.filt_fifo.append(np.zeros(predSig.shape))
+		self.filt_fifo.pop(0)
+		self.filt_fifo.append(thSig)
+		sigMat = np.mat(self.filt_fifo[0])
+		for i in range(len(self.filt_fifo)):
+			sigMat = np.vstack((sigMat, self.filt_fifo[i]))
+
+		# Filter (TODO: filtering too much useless points each timestep here)
+		filtSig = np.zeros(sigMat.shape[1])
+		for i in range(sigMat.shape[1]):
+			filtSig[i] = signal.lfilter(self.filt_b, self.filt_a, sigMat[:, i].T)[:, -1]
+
+		return filtSig
+
+	def physSensFilter(self, sig):
+		"""
+		Apply filtering and thresholding to model physical sensor properties and 
+		avoid numerical instabilities
+		"""
+
+		# Get prev time_steps and convert to numpy matrix
+		if not self.filt_fifo_2:
+			for i in range(self.buffLen):
+				self.filt_fifo_2.append(np.zeros(sig.shape))
+		self.filt_fifo_2.pop(0)
+		self.filt_fifo_2.append(sig)
+		sigMat = np.mat(self.filt_fifo_2[0])
+		for i in range(len(self.filt_fifo_2)):
+			sigMat = np.vstack((sigMat, self.filt_fifo_2[i]))
+
+
+		# Filter (TODO: filtering too much useless points each timestep here)
+		filtSig = np.zeros(sigMat.shape[1])
+		for i in range(sigMat.shape[1]):
+			filtSig[i] = signal.lfilter(self.filt_b, self.filt_a, sigMat[:, i].T)[:, -1]
+
+		return filtSig
 
 	def runStep(self):
 		""" Run the neuron for a given step """
 
 		# Get robot current state
-		a_it =  self.Aold.getArray().T
+		a_it = np.mat(self.physSensFilter(self.Aold.getArray())).T
+		v_it = self.robot.getState().speed.getArray()[0, :]
+		pos_it = self.robot.getState().pos.getArray()[0, :]
 		da_it = a_it - self.a
-		x_it = np.vstack((a_it, da_it))
+		x_it = a_it#np.vstack((np.mat(v_it).T)) #np.vstack((a_it, da_it))
 		self.a = a_it
+		self.po = pos_it
+		self.v = v_it
 
 		# Get input vector
 		if not self.inputs:
@@ -885,18 +978,22 @@ class ForceTrainingSimulation(TrainingSimulation):
 			#if i%4 == 0:
 			#	x = np.vstack((x, self.inputs[i]))
 
-		# Compute new estimation
-		y_est = np.asarray(self.w_prev.T * x).T
+		# Compute new estimation and filter it
+		y_est = self.neuron_fct(np.asarray(self.w_prev.T * x).T)
+		filt_y_est = y_est[0]
 
 		# Store estimation in vector
 		if self.yTrained.size == 0:
-			self.yTrained = y_est
+			self.yTrained = filt_y_est
 		else:
-			self.yTrained = np.vstack((self.yTrained, y_est))
+			self.yTrained = np.vstack((self.yTrained, filt_y_est))
+		self.acc = np.vstack((self.acc, x[0:1].T))
+		self.speed = np.vstack((self.speed, v_it))
+		self.pos = np.vstack((self.pos, pos_it))
 
-		# Pass the signal estimation to the controller to close the loop
-		stepInput = array2ModFactor(y_est, self.robot.morph.connections)
-		self.robot.control.setStepInput(stepInput)
+		# Filter and pass the signal estimation to the controller to close the loop
+		
+		self.robot.control.setStepInput(filt_y_est)
 
 		# Print
 		if self.iterationNumber == self.simulEnv.simulationLength - 1:
@@ -907,10 +1004,16 @@ class ForceTrainingSimulation(TrainingSimulation):
 		""" Add training data for a given step """
 
 		# Get robot current state
-		a_it =  self.Aold.getArray().T
+		#print str(self.robot.state.currentTime) + " Getting states of iteration " + str(self.iterationNumber)
+
+		a_it = np.mat(self.physSensFilter(self.Aold.getArray())).T
+		v_it = self.robot.getState().speed.getArray()[0, :]
+		pos_it = self.robot.getState().pos.getArray()[0, :]
 		da_it = a_it - self.a
-		x_it = np.vstack((a_it, da_it))
+		x_it = a_it# np.vstack((np.mat(v_it).T))
 		self.a = a_it
+		self.po = pos_it
+		self.v = v_it
 
 		# Create noisy vector
 		x_it_av = np.mean(np.abs(x_it))
@@ -950,8 +1053,13 @@ class ForceTrainingSimulation(TrainingSimulation):
 		if self.trainIt == 0:
 			w = np.random.rand(x.shape[0], self.O)
 			p = np.identity(x.shape[0]) / self.alpha
-			yTrained = np.asarray(w.T * x).T
-			self.yTrained = yTrained
+			yTrained = self.neuron_fct(np.asarray(w.T * x).T)
+			filtYTrained = yTrained[0]
+			self.yTrained = filtYTrained
+
+			self.acc = x[0:1].T
+			self.speed = v_it
+			self.pos = pos_it
 			#self.error = y - yTrained
 
 		# Else update
@@ -964,10 +1072,26 @@ class ForceTrainingSimulation(TrainingSimulation):
 			p = p_prev - num / den
 
 			# Update weight matrix
-			#e_prev = np.mat(self.error[-1,:])
-			l = (p * x) / (1 + x.T * p * x)
 			w_prev = np.mat(self.w_prev)
-			e_p = w_prev.T * x - y.T
+			
+			# Compute minimal error a window
+			if self.iterationNumber > self.eWin:
+				e_lim_min = self.eWin
+			else:
+				e_lim_min = self.iterationNumber
+			if self.iterationNumber < self.simulEnv.simulationLength - self.eWin:
+				e_lim_max = self.eWin
+			else:
+				e_lim_max = self.simulEnv.simulationLength - self.iterationNumber
+			e_i = self.neuron_fct(w_prev.T * x) - np.mat(self.yTraining[self.iterationNumber-e_lim_min]).T
+			for i in range(self.iterationNumber-e_lim_min+1, self.iterationNumber+e_lim_max):
+				e_i = np.hstack((e_i, self.neuron_fct(w_prev.T * x) - np.mat(self.yTraining[i]).T))
+			e_p = np.amin(e_i, axis=1)
+			#e_p = w_prev.T * x - y.T
+			#e_p = e_i[:, e_p_arg]
+
+			# Update weight matrix
+			l = (p * x) / (1 + x.T * p * x)
 			w = w_prev - p * x * e_p.T
 
 			# Fill the w error vector (usefull for plotting W convergence)
@@ -977,27 +1101,30 @@ class ForceTrainingSimulation(TrainingSimulation):
 				self.weightMatrixDiff = np.hstack((self.weightMatrixDiff, np.max(np.abs(w - w_prev))))
 
 			# Update output
-			yTrained =  np.transpose(w.T * x)
-			self.yTrained = np.vstack((self.yTrained, np.asarray(yTrained)))
+			yTrained =  self.neuron_fct(np.asarray(w.T * x).T)
+			filtYTrained = yTrained[0]
+			self.yTrained = np.vstack((self.yTrained, np.asarray(filtYTrained)))
+			self.acc = np.vstack((self.acc, x[0:1].T))
+			self.speed = np.vstack((self.speed, v_it))
+			self.pos = np.vstack((self.pos, pos_it))
 
 			# Update error (usefull for plotting error evolution)
 			if self.error == None:
-				self.error = np.mean(np.abs(y - yTrained))
+				self.error = np.mean(np.abs(y - filtYTrained))
 			else:
-				self.error = np.hstack((self.error, np.mean(np.abs(y - yTrained))))
-
-		# Update iteration
-		self.trainIt += 1
-		self.w_prev = w
-		self.p_prev = p
+				self.error = np.hstack((self.error, np.mean(np.abs(y - filtYTrained))))
 
 		# start Closed-Loop mode
 		if self.trainIt == self.openLength:
 			self.robot.control.closeLoop(self.closedLength, beta=self.beta)
 
 		# Pass the signal estimation to the controller to close the loop
-		stepInput = array2ModFactor(yTrained, self.robot.morph.connections)
-		self.robot.control.setStepInput(stepInput)
+		self.robot.control.setStepInput(filtYTrained)
+
+		# Update iteration
+		self.trainIt += 1
+		self.w_prev = w
+		self.p_prev = p
 
 		return
 

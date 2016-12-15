@@ -12,9 +12,9 @@ from matplotlib.mlab import *
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import uniform_filter
 import sys,os
-# plt.style.use('fivethirtyeight')
-# plt.rc('text', usetex=True)
-# plt.rc('font', family='serif')
+plt.style.use('fivethirtyeight')
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
 plt.rc('axes', facecolor='white')
 plt.rc('savefig', facecolor='white')
 
@@ -492,15 +492,15 @@ class Analysis(object):
 			plt.plot(x, y_max, linestyle="-", color=self._get_style_colors()[1], linewidth=0.5, label="Max")
 			plt.plot(x, y_av, linestyle="-", color=self._get_style_colors()[3], linewidth=0.5, label="Average")
 			plt.plot(x, y_min, linestyle="-", color=self._get_style_colors()[0], linewidth=0.5, label="Min")
-			if title != None:
-				plt.title(title)
-			else:
-				plt.title(self.filenames[index])#"Training " + unit + " of " + self.opt_type[index] + " algorithm with popSize = " + \
+			#if title != None:
+				#plt.title(title)
+			#else:
+			#	plt.title(self.filenames[index])#"Training " + unit + " of " + self.opt_type[index] + " algorithm with popSize = " + \
 				#num2str(self.ps[index]))
-			Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
+			#Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
 			plt.xlabel('Generation Epoch')
 			plt.ylabel(unit.title())
-			plt.xlim([0, max(x)])
+			plt.xlim([0, 1500])
 			if show: plt.show()
 			if save: plt.savefig(filename + "_" + unit + ".png", format='png', dpi=300)
 			plt.close()
@@ -639,7 +639,7 @@ class Analysis(object):
 		if save: plt.savefig(filename + "_av.png", format='png', dpi=300)
 		plt.close()
 
-	def plot_noise_sim(self, index=0, filename="results_noise_sim", title=None, nPoints=5, window=2, show=False, save=True):
+	def plot_noise_sim(self, index=0, filename="results_noise_sim", title=None, nPoints=75, window=15, show=False, save=True):
 		"""Perform simulations for different values of noise with the best individu of a file 
 		and plot the results"""
 
@@ -696,6 +696,37 @@ class Analysis(object):
 		ax.semilogx(noiseArr_av, averageArr, 'b-', label = "Score average")
 		plt.title("Simulation accuracy with increasing parameters relative noise")
 		Plot.configurePlot(fig, ax, "Relative noise" + r'$ \ \sigma$ on individu parameters', "Distance Traveled [m]", legend = False)
+		if show: plt.show()
+		if save: plt.savefig(filename + ".png", format='png', dpi=300)
+		plt.close()
+
+	def plot_noise_control(self, index=0, filename="results_noise_control", title=None, nPoints=75, window=15, show=False, save=True):
+		"""Perform simulations for different values of noise on the control signals with the best individu of a file 
+		and plot the results"""
+
+		print(" -- Printing control noise graph for file " + self.filenames[index])
+
+		noiseArr = np.logspace(-2.5, 0.2, num=nPoints)
+		if window%2 == 0:
+			noiseArr_av = noiseArr[window/2:nPoints-window/2+1]
+		else:
+			noiseArr_av = noiseArr[window/2:nPoints-window/2]
+		distArr = np.zeros(nPoints)
+		powerArr = np.zeros(nPoints)
+
+		for i in range(nPoints):
+			noise = noiseArr[i]
+			print(" -- Simulation " + str(i+1) + "/" + str(nPoints) + " : control noise value = " + str(noise) + " -- ")
+			bestIndex = np.argmax(self.y[index])
+			[score, distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, controlNoise=noise)
+
+		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
+		fig, ax = Plot.initPlot()
+		ax.semilogx(noiseArr, distArr, 'r.', label = "Noisy parameters scores" )
+		ax.semilogx(noiseArr_av, averageArr, 'b-', label = "Score average")
+		ax.set_xlim([-1000, 1.58])
+		plt.title("Simulation accuracy with increasing control signal relative noise")
+		Plot.configurePlot(fig, ax, "Relative noise" + r'$ \ \sigma$ on individu control signal', "Distance Traveled [m]", legend = False)
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 		plt.close()
@@ -787,6 +818,16 @@ class Analysis(object):
 			self.plot_noise_params(index=i, filename=filename + "_" + str(i), show=show, save=save)
 			i += 1
 
+	def plot_all_noise_control(self, filename="results_noise_params", show=False, save=True):
+		"""Plot accuracy evoluation when using noisy control signals for all files of the current folder"""
+
+		print(" -- Printing control signal noise evolution for each file. This can take a while -- ")
+
+		i = 0
+		for y in self.y:
+			self.plot_noise_control(index=i, filename=filename + "_" + str(i), show=show, save=save)
+			i += 1
+
 	def plot_all_params(self, filename="param_", show=False, save=True):
 
 		if not self.parameters:
@@ -834,7 +875,7 @@ class Analysis(object):
 
 	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, \
 		movie=True, pca=False, transPhase=0, trainingPhase=0.9, openPhase=0.1, alpha=0.0001, beta=0.95, \
-		pcaTitle="PCA", pcaFilename="pca", nrmse=False, simNoise=0, paramNoise=0, noiseType="rand"):
+		pcaTitle="PCA", pcaFilename="pca", nrmse=False, simNoise=0, paramNoise=0, controlNoise=0, noiseType="rand"):
 		"""Render a simulation movie for a given individu"""
 
 		# Init variables
@@ -853,7 +894,11 @@ class Analysis(object):
 		configFilename = scoreFilename.replace("score", "config")
 		env = HardEnvironment()
 		morph = SpringMorphology(noNodes=self.n_nodes[index1] , spring=self.k[index1], noNeighbours=3, environment=env)
-		control = ClosedLoopSineControl(morph)
+		if controlNoise == 0:
+			control = ClosedLoopSineControl(morph)
+		else:
+			# We never add additional noise in closed loop but just to test the robustness in open loop
+			control = NoisySineControl(morph, noise=controlNoise)
 		control.loadCSV(configFilename)
 		robot = Robot(morph, control)
 
@@ -888,6 +933,13 @@ class Analysis(object):
 					rank.append(i)
 					break;
 		paramList = trainscheme.loadCSV2List(parameterFilename, index2, rank)
+		if paramNoise != 0:
+			paramArray = paramList + np.random.standard_normal(np.array(paramList).shape) * paramNoise
+			l_vals = paramArray < 0.0
+		 	h_vals = paramArray > 1.0
+		 	paramArray[l_vals] = 0.0
+		 	paramArray[h_vals] = 1.0
+		 	paramList = paramArray.tolist()
 		trainscheme.normalizedList2robot(paramList, robot)
 
 		# Create the simulation
@@ -1044,7 +1096,7 @@ class Analysis(object):
 			print "Il faut faire ca!"
 
 	def nodes(self, filename="results_nodes", noiseAnalysis=False, videoAnalysis=False, \
-		genAnalysis=True, show=False, save=True):
+		genAnalysis=False, show=False, save=True):
 		"""Perform specific analysis for a nodes batch"""
 
 		folder = "nodes_pic/"
@@ -1117,10 +1169,10 @@ class Analysis(object):
 		 	dist_std[i] = np.std(np.array(dist[i]))
 		 	power_std[i] = np.std(np.array(power[i]))
 		 	score_std[i] = np.std(np.array(score[i]))
-		 	robust_std[i] = np.std(np.array(score[i]) - np.array(score_test[i]))
+		 	robust_std[i] = np.std(np.array(score_test[i]))
 		 	dist[i] = sum(dist[i]) / len(dist[i])
 		 	power[i] = sum(power[i]) / len(power[i])
-		 	robust[i] = np.mean(np.array(score[i]) - np.array(score_test[i]))
+		 	robust[i] = np.mean(np.array(score_test[i]))
 		 	score[i] = sum(score[i]) / len(score[i])
 			nodes[i] = sum(nodes[i]) / len(nodes[i])
 
@@ -1131,6 +1183,21 @@ class Analysis(object):
 		# Sort lists
 		nodes, dist, power, score, robust, dist_std, power_std, score_std, robust_std= \
 			(list(t) for t in zip(*sorted(zip(nodes, dist, power, score, robust, dist_std, power_std, score_std, robust_std))))
+
+		# Plot score as a fonction of the nodes number
+		fig, ax = Plot.initPlot()
+		ax.errorbar(nodes, score, \
+			yerr=score_std, fmt='.-', ecolor=self._get_style_colors()[1], color=self._get_style_colors()[0], \
+			linewidth=1.5, label="Noisy simulation")
+		ax.errorbar(nodes, robust, \
+			yerr=robust_std, fmt='.-', ecolor=self._get_style_colors()[1], color=self._get_style_colors()[2], \
+			linewidth=1.5, label="Clean simulation")
+		plt.title("Best individu score in function of nodes number")
+		Plot.configurePlot(fig, ax, 'Nodes number','Score', legendLocation='lower right', size='small')
+		if show: plt.show()
+		if save:
+			print(" -- Print score evolution with nodes number in " + folder + filename + "_score.png --")
+			plt.savefig(folder + filename + "_score.png", format='png', dpi=300)
 
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
@@ -1154,28 +1221,6 @@ class Analysis(object):
 		if save:
 			print(" -- Print power evolution with nodes number in " + folder + filename + "_power.png --")
 			plt.savefig(folder + filename + "_power.png", format='png', dpi=300)
-
-		fig, ax = Plot.initPlot()
-		ax.errorbar(nodes, score, \
-			yerr=score_std, fmt='.-', ecolor='r', \
-			linewidth=1.5, label="Score")
-		plt.title("Best individu score in function of nodes number")
-		Plot.configurePlot(fig, ax, 'Nodes number','Score', legendLocation='lower right', size='small')
-		if show: plt.show()
-		if save:
-			print(" -- Print score evolution with nodes number in " + folder + filename + "_score.png --")
-			plt.savefig(folder + filename + "_score.png", format='png', dpi=300)
-
-		fig, ax = Plot.initPlot()
-		ax.errorbar(nodes, robust, \
-			yerr=robust_std, fmt='.-', ecolor='r', \
-			linewidth=1.5, label="Accuraccy") 
-		plt.title("Difference of score between noisy and straight simulations")
-		Plot.configurePlot(fig, ax, 'Nodes number','Score difference', legendLocation='lower right', size='small')
-		if show: plt.show()
-		if save:
-			print(" -- Print score differences with nodes number in " + folder + filename + "_score_diff.png --")
-			plt.savefig(folder + filename + "_score_diff.png", format='png', dpi=300)
 
 	def freq(self, filename="results_freq", show=False, save=True):
 		"""Perform specific analysis for a omega batch"""
@@ -1473,7 +1518,7 @@ class Analysis(object):
 		dist_cl = []
 		sim_time = self.sim_time[0]
 		opt_type = self.opt_type[0]
-		sim_time_cl = 200
+		sim_time_cl = 100
 		max_it = 2
 
 		# Fill values from loaded variables
@@ -1494,7 +1539,7 @@ class Analysis(object):
 			for j, no in enumerate(nodes):
 				if no[0] == it_nodes:
 					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=0.1, rc=True, nrmse=True, alpha=0.0001, beta=1, transPhase=0, trainingPhase=0.9)
+						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, trainingPhase=0.4)
 					nodes[i].append(it_nodes)
 					nrmse[i].append(err[0])
 					dist_cl[i].append(d)
@@ -1502,7 +1547,7 @@ class Analysis(object):
 					duplicate = True	
 			if duplicate == False:
 					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=0.1, rc=True, nrmse=True, alpha=0.0001, beta=1, transPhase=0, trainingPhase=0.9)
+						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, trainingPhase=0.4)
 					nodes.append([it_nodes])
 					nrmse.append([err[0]])
 					dist_cl.append([d])
