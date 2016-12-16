@@ -1202,8 +1202,8 @@ class Analysis(object):
 		fig, ax = Plot.initPlot()
 		ax.errorbar(nodes, dist, \
 			yerr=dist_std, fmt='.-', ecolor='r', \
-			linewidth=1.5, label="Distance [m]")
-		Plot.configurePlot(fig, ax, 'Nodes number','Distance', legend=False, size='small')
+			linewidth=1.5, label="Distance")
+		Plot.configurePlot(fig, ax, 'Nodes number','Distance [m]', legend=False, size='small')
 		if show: plt.show()
 		if save:
 			print(" -- Print distance evolution with nodes number in " + folder + filename + "_dist.png --")
@@ -1213,7 +1213,7 @@ class Analysis(object):
 		ax.errorbar(nodes, power, \
 			yerr=power_std, fmt='.-', ecolor='r', \
 			linewidth=1.5, label="Power [W]") 
-		Plot.configurePlot(fig, ax, 'Nodes number','Power', legend=False, size='small')
+		Plot.configurePlot(fig, ax, 'Nodes number','Power [W]', legend=False, size='small')
 		if show: plt.show()
 		if save:
 			print(" -- Print power evolution with nodes number in " + folder + filename + "_power.png --")
