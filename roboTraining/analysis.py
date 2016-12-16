@@ -1192,7 +1192,6 @@ class Analysis(object):
 		ax.errorbar(nodes, robust, \
 			yerr=robust_std, fmt='.-', ecolor=self._get_style_colors()[1], color=self._get_style_colors()[2], \
 			linewidth=1.5, label="Clean simulation")
-		plt.title("Best individu score in function of nodes number")
 		Plot.configurePlot(fig, ax, 'Nodes number','Score', legendLocation='lower right', size='small')
 		if show: plt.show()
 		if save:
@@ -1203,9 +1202,8 @@ class Analysis(object):
 		fig, ax = Plot.initPlot()
 		ax.errorbar(nodes, dist, \
 			yerr=dist_std, fmt='.-', ecolor='r', \
-			linewidth=1.5, label="Distance")
-		plt.title("Travelled distance in 10s in function of nodes number")
-		Plot.configurePlot(fig, ax, 'Nodes number','Distance', legendLocation='lower right', size='small')
+			linewidth=1.5, label="Distance [m]")
+		Plot.configurePlot(fig, ax, 'Nodes number','Distance', legend=False, size='small')
 		if show: plt.show()
 		if save:
 			print(" -- Print distance evolution with nodes number in " + folder + filename + "_dist.png --")
@@ -1214,9 +1212,8 @@ class Analysis(object):
 		fig, ax = Plot.initPlot()
 		ax.errorbar(nodes, power, \
 			yerr=power_std, fmt='.-', ecolor='r', \
-			linewidth=1.5, label="Power") 
-		plt.title("Dissipated power in function of nodes number")
-		Plot.configurePlot(fig, ax, 'Nodes number','Power', legendLocation='lower right', size='small')
+			linewidth=1.5, label="Power [W]") 
+		Plot.configurePlot(fig, ax, 'Nodes number','Power', legend=False, size='small')
 		if show: plt.show()
 		if save:
 			print(" -- Print power evolution with nodes number in " + folder + filename + "_power.png --")
