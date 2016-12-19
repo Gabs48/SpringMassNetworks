@@ -30,10 +30,13 @@ class Plotter(object):
 			time that is paused on the plot
 		"""
 
-	def __init__(self, border=1.5, plotCycle=10, startPlot=0, text = True, plot = False, movie = False, pauseTime = 0.00001, movieName = "out", color = True):
+	def __init__(self, border=1.5, plotCycle=10, startPlot=0, text=False, plot=False, movie=False,\
+		pauseTime=0.00001, movieName="out", color=True, delete=True):
 		self.plot = plot
 		self.movie = movie
 		self.color = color
+		self.delete = delete
+		self.first_it = True
 		if plot:
 			self.border = border
 			self.plotCycle = plotCycle
@@ -110,7 +113,9 @@ class Plotter(object):
 						self.init = False;
 						self.maxy = np.max(ypos)
 					plt.ylim(-self.border, self.border + 1.2 * self.maxy)
-					self.xplotwidth = max(xpos) + self.border - (min(xpos) - self.border)
+					if self.first_it == True:
+						self.xplotwidth = max(xpos) + self.border *5 - (min(xpos) - self.border)
+						self.first_it = False
 
 					for i,j in itertools.product(range(len(xpos)), range(len(ypos))):
 						if connections[i,j]:
@@ -145,8 +150,9 @@ class Plotter(object):
 			print "ffmpeg -r " + str(self.fps) + " -s 1100x700"+  " -i "+ self.IMGname + " -c:v libx264 -r 30 -pix_fmt yuv420p " + self.movieName + ".mp4"""
 			os.system("ffmpeg -r " + str(self.fps) + " -s 1100x700"+  " -i "+ self.IMGname + " -c:v libx264 -r 30 -pix_fmt yuv420p " +
 				 self.movieName + ".mp4""")
-			for fname in self.fileList:
-				os.remove(fname)
+			if self.delete:
+				for fname in self.fileList:
+					os.remove(fname)
 			self.fileList = []
 			self.frame = 0;
 
@@ -607,14 +613,16 @@ class TrainingSimulation(VerletSimulation):
 			self.runStep()
 			self.save() ## If save??
 			if self.trainingPlot == "all":
-				self.plot(n=6000)
-				self.plotLimitCycle()
 				self.plotWDiff(-self.trainLength)
 				self.plotError(-self.trainLength+50)
+				self.plotInputs()
+				self.plot(n=6000)
+				self.plotLimitCycle()
 			if self.trainingPlot == "cont":
-				self.plot(n=self.trainLength+50, comp=1)
 				self.plotWDiff(-self.trainLength*2/3)
+				self.plotInputs()
 				self.plotError(-self.trainLength+50)
+				self.plotLimitCycle()
 
 	def mse(self, arr1, arr2):
 		""" Compute MSE between two matrices """
@@ -689,21 +697,6 @@ class TrainingSimulation(VerletSimulation):
 		if comp == None:
 			comp = self.O
 
-		plt.plot(self.timeArray, self.acc, "b-")
-		plt.title("Node 1 acceleration evolution")
-		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_acc.png", format='png', dpi=300)
-		plt.close()
-
-		plt.plot(self.timeArray, self.pos, "")
-		plt.title("Node 1 position evolution")
-		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_pos.png", format='png', dpi=300)
-		plt.close()
-
-		plt.plot(self.timeArray, self.speed, "")
-		plt.title("Node 1 speed evolution")
-		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_speed.png", format='png', dpi=300)
-		plt.close()
-
 		for i in range(comp):
 
 			# Compute error vector
@@ -734,6 +727,24 @@ class TrainingSimulation(VerletSimulation):
 			if show: plt.show()
 			if save: plt.savefig(self.outputFolder + "/" + self.outputFilename + "_sin_" + str(i+1) + ".png", format='png', dpi=300)
 			plt.close()
+
+	def plotInputs(self):
+		""" Plot inputs evolution to monitor feddback effect """
+
+		plt.plot(self.timeArray, self.acc, "b-")
+		plt.title("Node 1 acceleration evolution")
+		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_acc.png", format='png', dpi=300)
+		plt.close()
+
+		plt.plot(self.timeArray, self.pos, "")
+		plt.title("Node 1 position evolution")
+		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_pos.png", format='png', dpi=300)
+		plt.close()
+
+		plt.plot(self.timeArray, self.speed, "")
+		plt.title("Node 1 speed evolution")
+		plt.savefig(self.outputFolder + "/" + self.outputFilename + "_speed.png", format='png', dpi=300)
+		plt.close()
 
 	def plotW(self, show=False, save=True):
 		""" Plot distribution of wieight matrix W """
@@ -870,7 +881,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 		# Algorithm constants
 		self.alpha = alpha
 		self.beta = beta
-		self.hist = 2
+		self.hist = 3
 		self.eWin = 5
 
 		# Algorithm matrices
@@ -899,6 +910,28 @@ class ForceTrainingSimulation(TrainingSimulation):
 		#signal.butter(self.order, self.fc * self.simulEnv.timeStep, 'low')
 		self.filt_fifo = [] # Create a fifo
 		self.filt_fifo_2 = [] # Create a fifo
+
+	def createNeuronLayer(self, size, x):
+		""" Create the weights values for an intermediate layer of neurons"""
+
+		self.neuron_layer_size = size
+		self.neuron_layer_norm_factor = 10
+		self.neuron_layer_w = []
+		self.neuron_layer_b = []
+
+		for i in range(size):
+			self.neuron_layer_w.append(2 * np.array(np.random.rand(x.shape[0])) - 1)
+			self.neuron_layer_b.append(0.5 * np.random.rand() - 0.25)
+
+	def neuronLayerFct(self, x):
+		""" Run non-linear function on input vector through an neuronal layer"""
+
+		y = []
+		for n in range(self.neuron_layer_size):
+			x = x / self.neuron_layer_norm_factor
+			y.append(np.tanh(np.dot(self.neuron_layer_w[n], x)))# + self.neuron_layer_b[n]))
+
+		return np.mat(y).T
 
 	def physActFilter(self, predSig):
 		"""
@@ -955,14 +988,16 @@ class ForceTrainingSimulation(TrainingSimulation):
 		""" Run the neuron for a given step """
 
 		# Get robot current state
-		a_it = np.mat(self.physSensFilter(self.Aold.getArray())).T
+		a_it = self.Aold.getArray()[0, :]
 		v_it = self.robot.getState().speed.getArray()[0, :]
 		pos_it = self.robot.getState().pos.getArray()[0, :]
 		da_it = a_it - self.a
-		x_it = a_it#np.vstack((np.mat(v_it).T)) #np.vstack((a_it, da_it))
 		self.a = a_it
 		self.po = pos_it
 		self.v = v_it
+
+		# Process acceleration vector through a non-linear layer
+		x_it = np.mat(self.physSensFilter(a_it)).T #self.neuronLayerFct(pos_it)
 
 		# Get input vector
 		if not self.inputs:
@@ -1005,22 +1040,18 @@ class ForceTrainingSimulation(TrainingSimulation):
 
 		# Get robot current state
 		#print str(self.robot.state.currentTime) + " Getting states of iteration " + str(self.iterationNumber)
-
-		a_it = np.mat(self.physSensFilter(self.Aold.getArray())).T
+		a_it = self.Aold.getArray()[0, :]
 		v_it = self.robot.getState().speed.getArray()[0, :]
 		pos_it = self.robot.getState().pos.getArray()[0, :]
 		da_it = a_it - self.a
-		x_it = a_it# np.vstack((np.mat(v_it).T))
 		self.a = a_it
 		self.po = pos_it
 		self.v = v_it
 
-		# Create noisy vector
-		x_it_av = np.mean(np.abs(x_it))
-		noise_k_it = 1 - 2 * self.trainIt / float(self.trainLength)
-		if noise_k_it < 0:
-			noise_k_it = 0
-		noise_it = 0#.1 * noise_k_it * x_it_av * np.random.rand(x_it.shape[0], x_it.shape[1])
+		# Create a non-linear layer of neurons and process acc vector through it
+		#if self.trainIt == 0:
+		#	self.createNeuronLayer(20, pos_it)
+		x_it = np.mat(self.physSensFilter(a_it)).T # self.neuronLayerFct(pos_it)
 
 		# If the inputs fifo hasen't been created, do it
 		if not self.inputs:
@@ -1030,7 +1061,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 
 		# Update the inputs fifo (TODO: useless if the whole xtraining is already savec below)
 		self.inputs.pop(0)
-		self.inputs.append(x_it + noise_it)
+		self.inputs.append(x_it)
 
 		# Fill the xTraining vector (usefull for plotting limit cycle)
 		if self.xTraining.size == 0:
@@ -1057,7 +1088,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 			filtYTrained = yTrained[0]
 			self.yTrained = filtYTrained
 
-			self.acc = x[0:1].T
+			self.acc = a_it[0]
 			self.speed = v_it
 			self.pos = pos_it
 			#self.error = y - yTrained
@@ -1104,7 +1135,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 			yTrained =  self.neuron_fct(np.asarray(w.T * x).T)
 			filtYTrained = yTrained[0]
 			self.yTrained = np.vstack((self.yTrained, np.asarray(filtYTrained)))
-			self.acc = np.vstack((self.acc, x[0:1].T))
+			self.acc = np.vstack((self.acc, a_it[0]))
 			self.speed = np.vstack((self.speed, v_it))
 			self.pos = np.vstack((self.pos, pos_it))
 

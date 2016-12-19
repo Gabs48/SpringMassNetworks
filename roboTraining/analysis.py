@@ -12,11 +12,11 @@ from matplotlib.mlab import *
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import uniform_filter
 import sys,os
-plt.style.use('fivethirtyeight')
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
-plt.rc('axes', facecolor='white')
-plt.rc('savefig', facecolor='white')
+# plt.style.use('fivethirtyeight')
+# plt.rc('text', usetex=True)
+# plt.rc('font', family='serif')
+# plt.rc('axes', facecolor='white')
+# plt.rc('savefig', facecolor='white')
 
 class Analysis(object):
 
@@ -492,15 +492,16 @@ class Analysis(object):
 			plt.plot(x, y_max, linestyle="-", color=self._get_style_colors()[1], linewidth=0.5, label="Max")
 			plt.plot(x, y_av, linestyle="-", color=self._get_style_colors()[3], linewidth=0.5, label="Average")
 			plt.plot(x, y_min, linestyle="-", color=self._get_style_colors()[0], linewidth=0.5, label="Min")
-			#if title != None:
-				#plt.title(title)
-			#else:
-			#	plt.title(self.filenames[index])#"Training " + unit + " of " + self.opt_type[index] + " algorithm with popSize = " + \
+			if title != None:
+				plt.title(title)
+			else:
+				plt.title(self.filenames[index])#"Training " + unit + " of " + self.opt_type[index] + " algorithm with popSize = " + \
 				#num2str(self.ps[index]))
-			#Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower center')
+			Plot.configurePlot(fig, ax, 'Temp', 'Temp', legend=True, legendLocation='lower right')
 			plt.xlabel('Generation Epoch')
 			plt.ylabel(unit.title())
 			plt.xlim([0, 1500])
+			plt.ylim([-0.6, 0.6])
 			if show: plt.show()
 			if save: plt.savefig(filename + "_" + unit + ".png", format='png', dpi=300)
 			plt.close()
@@ -873,8 +874,8 @@ class Analysis(object):
 
 			return max_t, max_index1, max_index2
 
-	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, \
-		movie=True, pca=False, transPhase=0, trainingPhase=0.9, openPhase=0.1, alpha=0.0001, beta=0.95, \
+	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, plotCycle=6, \
+		movie=False, pca=False, transPhase=0, trainingPhase=0.9, openPhase=0.1, alpha=0.0001, beta=0.95, \
 		pcaTitle="PCA", pcaFilename="pca", nrmse=False, simNoise=0, paramNoise=0, controlNoise=0, noiseType="rand"):
 		"""Render a simulation movie for a given individu"""
 
@@ -943,7 +944,7 @@ class Analysis(object):
 		trainscheme.normalizedList2robot(paramList, robot)
 
 		# Create the simulation
-		plotter = Plotter(movie=movie, plot=movie, movieName=simName, plotCycle = 6)
+		plotter = Plotter(movie=movie, plot=movie, movieName=simName, plotCycle=plotCycle, delete=(plotCycle==6))
 		simulEnv = SimulationEnvironment(timeStep=self.ts[index1], simulationLength=sl, plot=plotter,\
 			pcaPlot=pca, pcaTitle=pcaTitle, pcaFilename=pcaFilename, pcaMat=self.pcaMat, \
 			perfMetr="powereff", controlPlot=False, refPower=self.ref_pow[index1], refDist=self.ref_dist[index1])
@@ -979,7 +980,7 @@ class Analysis(object):
 		if pca and self.pcaMat == None:
 			self.pcaMat = simulEnv.pcaMat
 
-		if nrmse:
+		if nrmse and rc:
 			return [score, simul.getDistance(), robot.getPower(), simul.get_training_error()]
 		else:
 			return [score, simul.getDistance(), robot.getPower()]
@@ -1096,7 +1097,7 @@ class Analysis(object):
 			print "Il faut faire ca!"
 
 	def nodes(self, filename="results_nodes", noiseAnalysis=False, videoAnalysis=False, \
-		genAnalysis=False, show=False, save=True):
+		genAnalysis=True, show=False, save=True):
 		"""Perform specific analysis for a nodes batch"""
 
 		folder = "nodes_pic/"
@@ -1286,11 +1287,11 @@ class Analysis(object):
 			print(" -- Averaging " + str(len(n_av)) + " graph points with on average " + \
 				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
 
-		# Sort lists
+		# Sort values
 		nodes, omega, score, score_std = (list(t) for t in zip(*sorted(zip(nodes, omega, score, score_std))))
 		freq = np.array(omega) / (2 * np.pi)
 
-
+		# Rearrange values
 		x = []; y = [];	z = []; w = [];	j = 0;  n_prec = 0
 		for i, n in enumerate(nodes):
 			if n != n_prec:
@@ -1304,36 +1305,96 @@ class Analysis(object):
 				y[j-1].append(score[i])
 				z[j-1].append(score_std[i])
 			n_prec = n
+
+		# Plot evolution of score for different structures
 		fig, ax = Plot.initPlot()
 		for i in range(0, len(x)):
 		 	ax.errorbar(x[i], y[i], yerr=z[i], fmt='.-', \
-		 		linewidth=1.5, label="$N_{nodes} = $ " + \
+		 		linewidth=1.8, label="$N_{nodes} = $ " + \
 		 		num2str(w[i]))
-
-		# Plot score as a fct of power in a loglog graph for different omega values
-		# r_nodes = len(set(nodes))
-		# n_nodes = len(nodes) / r_nodes
-		# fig, ax = Plot.initPlot()
-		# for i in range(r_nodes):
-		# 	ax.errorbar(freq[n_nodes*i:n_nodes*i+n_nodes], np.array(score[n_nodes*i:n_nodes*i+n_nodes]), \
-		# 		yerr=np.array(score_std[n_nodes*i:n_nodes*i+n_nodes]), fmt='.-', ecolor='r', \
-		# 		linewidth=1.5)#, label="$N_{nodes} = $ " + \
-		# 		#num2str(nodes[i*n_nodes]))
-		# # Print 3DB bandwidth
-		# major_ticks = np.arange(0, 10, 1)                                              
-		# minor_ticks = np.arange(0, 10, 0.1)                                               
-		# ax.set_xticks(major_ticks)                                                       
-		# ax.set_xticks(minor_ticks, minor=True)  
-		# ax.grid(which='both') 
-		# ax.plot([min(freq), max(freq)], [max(score)/2, max(score)/2], linewidth=1.5, label="-3 dB score value")
-
-
-		plt.title("Evolution of score for different structures in function of global frequency")
-		Plot.configurePlot(fig, ax, 'Frequency','Score', legendLocation='lower right', size='small')
-		ax.set_xlim([0, np.max(freq)])
-		#ax.set_ylim([1e-3, 5])
+		Plot.configurePlot(fig, ax, 'Frequency [Hz]','Score', legendLocation='lower right', size='small')
+		ax.set_ylim([0, 0.7])
+		ax.set_xlim([0, max(freq) + 0.2])
 		if show: plt.show()
-		if save: plt.savefig(folder + filename + ".png", format='png', dpi=300)
+		if save: plt.savefig(folder + filename + "_all.png", format='png', dpi=300)
+
+	def freq_av(self, filename="results_freq", show=False, save=True):
+		"""Perform specific analysis for a omega batch"""
+
+		folder = "omega_pic/"
+		mkdir_p(folder)
+		print(" -- Averaged frequency analysis of folder " + self.path + " --")
+
+		score = []
+		omega = []
+		nodes = []
+		sim_time = self.sim_time[0]
+		opt_type = self.opt_type[0]
+
+		# Fill values from loaded variables
+		for i in range(len(self.y)):
+
+			duplicate = False
+			assert self.sim_time[i] == sim_time, \
+				"For a meaningfull pareto graph, ensure the simulation times are the same for all data"
+			assert self.opt_type[i] == opt_type, \
+				"For a meaningfull pareto graph, ensure the optimization algorithms are the same for all data"
+
+			# Fetch iteration omega value
+			it_omega = None
+			for it in self.trainable[i]:
+				if it["name"] == "omega":
+					it_omega = it["max"]
+			if not it_omega:
+				it_omega = self.omega[i]
+			it_score = self.get_best_ind(index=i)[0]
+
+			# If couple omega/ampli already existsn average with previous one
+			for j, om in enumerate(omega):
+				if om[0] == it_omega:
+					score[j].append(it_score)
+					omega[j].append(it_omega)
+					duplicate = True
+
+			if duplicate == False:
+				score.append([it_score])
+				omega.append([it_omega])
+
+		# Average points with multiple values
+		n_av = []
+		score_std = np.zeros(len(score))
+		for i in range(len(score)):
+			if  len(score[i]) > 1:
+				n_av.append(len(score[i]))
+			score_std[i] = np.std(np.array(score[i]))
+			score[i] = sum(score[i]) / len(score[i])
+			omega[i] = sum(omega[i]) / len(omega[i])
+
+		if len(n_av) != 0:
+			print(" -- Averaging " + str(len(n_av)) + " graph points with on average " + \
+				num2str(float(sum(n_av)/len(n_av))) + " data sets for each --")
+
+		# Sort values
+		omega, score, score_std = (list(t) for t in zip(*sorted(zip(omega, score, score_std))))
+		freq = np.array(omega) / (2 * np.pi)
+
+		fig, ax = Plot.initPlot()
+		ax.errorbar(freq, np.array(score), yerr=np.array(score_std), fmt='.-', ecolor='r', \
+			linewidth=1.8)
+
+		# Print 3DB bandwidth
+		major_ticks = np.arange(0, 10, 1)                                              
+		minor_ticks = np.arange(0, 10, 0.1)                                               
+		ax.set_xticks(major_ticks)                                                       
+		ax.set_xticks(minor_ticks, minor=True)  
+		ax.grid(which='both') 
+		ax.plot([min(freq), max(freq)], [max(score)/2, max(score)/2], linewidth=1.5, label="-3 dB Bandwidth")
+
+		Plot.configurePlot(fig, ax, 'Frequency [Hz]','Score', legendLocation='upper right', size='small')
+		ax.set_xlim([0, np.max(freq) + 0.2])
+		ax.set_ylim([0, 0.7])
+		if show: plt.show()
+		if save: plt.savefig(folder + filename + "_av.png", format='png', dpi=300)
 
 	def pareto_dist(self, filename="results_pareto_dist", show=False, save=True):
 		"""Perform specific analysis for a pareto dist batch"""
@@ -1457,13 +1518,16 @@ class Analysis(object):
 
 				# Limit cycle and video gait analysis
 				if movieAnalysis:
-					name  = str(int(it_omega/2/np.pi)) +"_" + str(int(it_p_ref))
+					f = it_omega/2/np.pi
+					p = 1/f
+					n = int(p/self.ts[i]/4 + 1)
+					name  = str(f) +"_" + str(int(it_p_ref))
 					simName = folder + "sim_" + name
-					pcaName = folder + "pca_" + name
-					pcaTitle = "Limit cycle for $f = " + num2str(np.ceil(it_omega/2/np.pi)) + \
-						" Hz$ and $P = " + num2str(np.ceil(it_p_ref)) + " W$"
-				 	self.simulate_ind(best[1], best[2], simTime=10, movie=True, rc=False, pca=True, \
-				 		simName=simName, pcaFilename=pcaName, pcaTitle=pcaTitle)
+					# pcaName = folder + "pca_" + name
+					# pcaTitle = "Limit cycle for $f = " + num2str(np.ceil(it_omega/2/np.pi)) + \
+					# 	" Hz$ and $P = " + num2str(np.ceil(it_p_ref)) + " W$"
+					self.simulate_ind(best[1], best[2], simTime=int(8*p), movie=True, rc=False, \
+					plotCycle=n, simName=simName)
 
 
 		# Average points with multiple values
@@ -1485,18 +1549,29 @@ class Analysis(object):
 
 		# Sort lists
 		omega, p_ref, speed, speed_std = (list(t) for t in zip(*sorted(zip(omega, p_ref, speed, speed_std))))
-		n_omega = len(omega) / len(set(omega))
+		n_omega = [0]
+		o_prec = 0
+		j = 0
+		for o in omega:
+			if o != o_prec:
+				n_omega.append(1)
+				j += 1
+			else:
+				n_omega[j] += 1
+			o_prec = o
 
 		# Plot distance and power as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
 		for i in range(len(set(omega))):
-			ax.errorbar(p_ref[n_omega*i:n_omega*i+n_omega], speed[n_omega*i:n_omega*i+n_omega], \
-				yerr=speed_std[n_omega*i:n_omega*i+n_omega], fmt='.-', \
-				linewidth=1.5, label="$f = $ " + num2str(omega[n_omega*i]/2/np.pi) + " Hz")
+			prev_ind = sum(n_omega[0:i+1])
+			next_ind = prev_ind+n_omega[i+1]
+			ax.errorbar(p_ref[prev_ind:next_ind], speed[prev_ind:next_ind], \
+				yerr=speed_std[prev_ind:next_ind], fmt='.-', \
+				linewidth=1.5, label="$f = $ " + num2str(omega[n_omega[i]*i]/2/np.pi) + " Hz")
 
-		plt.title("Speed evolution under constrained power")
+		#plt.title("Speed evolution under constrained power")
 		plt.xlim([0, max(p_ref)])
-		Plot.configurePlot(fig, ax, 'Power','Speed', legendLocation='lower right', size='small')
+		Plot.configurePlot(fig, ax, 'Power [W]','Speed [m/s]', legendLocation='lower right', size='small')
 		if show: plt.show()
 		if save:
 			print(" -- Print power pareto in " + folder + filename + ".png --")
@@ -1515,7 +1590,7 @@ class Analysis(object):
 		dist_cl = []
 		sim_time = self.sim_time[0]
 		opt_type = self.opt_type[0]
-		sim_time_cl = 100
+		sim_time_cl = 50
 		max_it = 2
 
 		# Fill values from loaded variables
@@ -1536,19 +1611,22 @@ class Analysis(object):
 			for j, no in enumerate(nodes):
 				if no[0] == it_nodes:
 					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, trainingPhase=0.4)
+						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, trainingPhase=0.5)
+					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl/2, nrmse=True)
 					nodes[i].append(it_nodes)
 					nrmse[i].append(err[0])
-					dist_cl[i].append(d)
-					dist[i].append(it_dist)
-					duplicate = True	
+					dist_cl[i].append(d-d2-it_dist)
+					dist[i].append(d2-it_dist)
+					duplicate = True
 			if duplicate == False:
 					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, trainingPhase=0.4)
+						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, trainingPhase=0.5)
+					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl/2, nrmse=True)
+					print d, d2, it_dist
 					nodes.append([it_nodes])
 					nrmse.append([err[0]])
-					dist_cl.append([d])
-					dist.append([it_dist])
+					dist_cl.append([d-d2-it_dist])
+					dist.append([d2-it_dist])
 
 
 		# Average points
@@ -1559,13 +1637,14 @@ class Analysis(object):
 		for i in range(len(dist)):
 			n_av += len(dist[i])
 			nrmse_std.append(np.std(np.array(nrmse[i])))
-			dist_cl_std.append(np.std(np.array(dist_cl[i]) / sim_time_cl * sim_time))
+			dist_cl_std.append(np.std(np.array(dist_cl[i])))
 			dist_std.append(np.std(np.array(dist[i])))
 			nrmse[i] = sum(nrmse[i]) / len(nrmse[i])
-			dist_cl[i] = sum(dist_cl[i]) / len(dist_cl[i]) / sim_time_cl * sim_time
+			dist_cl[i] = sum(dist_cl[i]) / len(dist_cl[i])
 			dist[i] = sum(dist[i]) / len(dist[i])
 			nodes[i] = sum(nodes[i]) / len(nodes[i])
 
+		print dist, dist_cl
 		if n_av != len(dist):
 			print(" -- Averaging " + str(n_av) + " graph points with on average " + \
 				num2str(float(n_av)/len(nodes)) + " data sets for each --")
@@ -1586,7 +1665,7 @@ class Analysis(object):
 
 		# Plot distance as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
-		ax.errorbar(nodes, dist, yerr=dist__std, linewidth=1.5,  fmt=".-", \
+		ax.errorbar(nodes, dist, yerr=dist_std, linewidth=1.5,  fmt=".-", \
 			color=self._get_style_colors()[0], label="Open loop distance")
 		ax.errorbar(nodes, dist_cl, yerr=dist_cl_std, linewidth=1.5, fmt=".-", \
 			color=self._get_style_colors()[1], label="Closed-loop distance")
