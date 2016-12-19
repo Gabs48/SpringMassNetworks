@@ -903,7 +903,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 		## REPLACE THOSE ABSOLUTE VALUES
 		self.thh = 1 + 0.5  # Higher value of thresholding
 		self.thl = 1 - 0.5 # Lower value for thresholding
-		self.order = 60 # Filter order
+		self.order = 90 # Filter order
 		self.buffLen = 3 * self.order # Signal buffer length for filtering
 		self.filt_b = signal.firwin(self.order, self.fc * self.simulEnv.timeStep)
 		self.filt_a = [1]
