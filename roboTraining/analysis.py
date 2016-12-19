@@ -1590,7 +1590,8 @@ class Analysis(object):
 		dist_cl = []
 		sim_time = self.sim_time[0]
 		opt_type = self.opt_type[0]
-		sim_time_cl = 50
+		sim_time_cl = 70
+		sim_time_ol = 40
 		max_it = 2
 
 		# Fill values from loaded variables
@@ -1611,21 +1612,23 @@ class Analysis(object):
 			for j, no in enumerate(nodes):
 				if no[0] == it_nodes:
 					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, trainingPhase=0.5)
-					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl/2, nrmse=True)
+						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
+						trainingPhase=sim_time_ol/float(sim_time_cl))
+					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
 					nodes[i].append(it_nodes)
 					nrmse[i].append(err[0])
-					dist_cl[i].append(d-d2-it_dist)
+					dist_cl[i].append(d-d2)
 					dist[i].append(d2-it_dist)
 					duplicate = True
 			if duplicate == False:
 					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, trainingPhase=0.5)
-					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl/2, nrmse=True)
+						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
+						trainingPhase=sim_time_ol/float(sim_time_cl))
+					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
 					print d, d2, it_dist
 					nodes.append([it_nodes])
 					nrmse.append([err[0]])
-					dist_cl.append([d-d2-it_dist])
+					dist_cl.append([d-d2])
 					dist.append([d2-it_dist])
 
 

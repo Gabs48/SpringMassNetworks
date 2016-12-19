@@ -6,7 +6,7 @@ from roboTraining.analysis import *
 if __name__ == "__main__":
 
 	# Create Analysis object and load results folder
-	an = Analysis(root="paper", folder="Nodes")#cl/Machine-7/20161123_212706/")
+	an = Analysis(root=".", folder="CMA4")#cl/Machine-7/20161123_212706/")
 	an.load()
 
 	# General plots
