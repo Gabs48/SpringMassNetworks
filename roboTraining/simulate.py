@@ -622,6 +622,7 @@ class TrainingSimulation(VerletSimulation):
 				self.plotWDiff(-self.trainLength*2/3)
 				self.plotInputs()
 				self.plotError(-self.trainLength+50)
+				self.plot(n=6000, comp=2)
 				self.plotLimitCycle()
 
 	def mse(self, arr1, arr2):
@@ -899,11 +900,11 @@ class ForceTrainingSimulation(TrainingSimulation):
 		self.pos = np.array([])
 
 		# Create actuator threshold and low pass filtering
-		self.fc = 2 # Hz
+		self.fc = 3 # Hz
 		## REPLACE THOSE ABSOLUTE VALUES
 		self.thh = 1 + 0.5  # Higher value of thresholding
 		self.thl = 1 - 0.5 # Lower value for thresholding
-		self.order = 90 # Filter order
+		self.order = 120 # Filter order
 		self.buffLen = 3 * self.order # Signal buffer length for filtering
 		self.filt_b = signal.firwin(self.order, self.fc * self.simulEnv.timeStep)
 		self.filt_a = [1]

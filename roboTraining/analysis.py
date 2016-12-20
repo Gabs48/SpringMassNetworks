@@ -1475,7 +1475,7 @@ class Analysis(object):
 			print(" -- Print distance pareto in " + folder + filename + ".png --")
 			plt.savefig(folder + filename + ".png", format='png', dpi=300)
 
-	def pareto_power(self, filename="results_pareto_power", movieAnalysis=False, show=False, save=True):
+	def pareto_power(self, filename="results_pareto_power", movieAnalysis=True, show=False, save=True):
 		"""Perform specific analysis for a pareto power batch"""
 
 		folder = "pareto_pic/"
@@ -1517,7 +1517,7 @@ class Analysis(object):
 				omega.append([it_omega])
 
 				# Limit cycle and video gait analysis
-				if movieAnalysis:
+				if movieAnalysis and it_omega < 19 and it_omega > 18:
 					f = it_omega/2/np.pi
 					p = 1/f
 					n = int(p/self.ts[i]/4 + 1)
@@ -1527,7 +1527,7 @@ class Analysis(object):
 					# pcaTitle = "Limit cycle for $f = " + num2str(np.ceil(it_omega/2/np.pi)) + \
 					# 	" Hz$ and $P = " + num2str(np.ceil(it_p_ref)) + " W$"
 					self.simulate_ind(best[1], best[2], simTime=int(8*p), movie=True, rc=False, \
-					plotCycle=n, simName=simName)
+					simName=simName)
 
 
 		# Average points with multiple values
@@ -1590,7 +1590,7 @@ class Analysis(object):
 		dist_cl = []
 		sim_time = self.sim_time[0]
 		opt_type = self.opt_type[0]
-		sim_time_cl = 70
+		sim_time_cl = 50
 		sim_time_ol = 40
 		max_it = 2
 
@@ -1615,10 +1615,10 @@ class Analysis(object):
 						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
 						trainingPhase=sim_time_ol/float(sim_time_cl))
 					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
-					nodes[i].append(it_nodes)
-					nrmse[i].append(err[0])
-					dist_cl[i].append(d-d2)
-					dist[i].append(d2-it_dist)
+					nodes[j].append(it_nodes)
+					nrmse[j].append(err[0])
+					dist_cl[j].append(d-d2)
+					dist[j].append(it_dist)
 					duplicate = True
 			if duplicate == False:
 					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
@@ -1629,7 +1629,7 @@ class Analysis(object):
 					nodes.append([it_nodes])
 					nrmse.append([err[0]])
 					dist_cl.append([d-d2])
-					dist.append([d2-it_dist])
+					dist.append([it_dist])
 
 
 		# Average points
