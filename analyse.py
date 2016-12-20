@@ -19,11 +19,10 @@ if __name__ == "__main__":
 	# an.plot_all_params()
 
 	# Simulate best individu
-	#score, index1, index2 = an.get_best_ind()
-	#for a in [0.01]:#, 1, 0.001, 0.0001]:#, 0.001, 0.01, 0.1, 1]:
-	#an.simulate_ind(index1, index2, simTime=10, movie=True)
-	#	an.simulate_ind(index1, index2, simTime=50, movie=False, simNoise=0, \
-	#		alpha=a, rc=True, openPhase=0.3, beta=0.95, trainingPhase=0.5)
+	# score, index1, index2 = an.get_best_ind()
+	# for a in [0.01]:#, 1, 0.001, 0.0001]:#, 0.001, 0.01, 0.1, 1]:
+	# 	an.simulate_ind(index1, index2, simTime=50, movie=False, simNoise=0.01, \
+	# 		alpha=a, rc=True, openPhase=0.3, beta=0.95, trainingPhase=0.8)
 
 	# Simtime analysis
 	# an.simtime()
@@ -45,6 +44,6 @@ if __name__ == "__main__":
 	an.nodes_CL()
 
 	# Noise analysis
-	# an.plot_all_noise_sims()
+	#an.plot_all_noise_sims()
 	#an.plot_all_noise_params()
 	#an.plot_all_noise_control()

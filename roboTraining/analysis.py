@@ -640,13 +640,14 @@ class Analysis(object):
 		if save: plt.savefig(filename + "_av.png", format='png', dpi=300)
 		plt.close()
 
-	def plot_noise_sim(self, index=0, filename="results_noise_sim", title=None, nPoints=75, window=15, show=False, save=True):
+	def plot_noise_sim(self, index=0, filename="results_noise_sim", title=None, nPoints=50, window=7, show=False, \
+		save=True, **kwargs):
 		"""Perform simulations for different values of noise with the best individu of a file 
 		and plot the results"""
 
 		print(" -- Printing noise simulation graph for file " + self.filenames[index])
 
-		noiseArr = np.logspace(-8, -1, num=nPoints)
+		noiseArr = np.logspace(-2, 0.3, num=nPoints)
 		if window%2 == 0:
 			noiseArr_av = noiseArr[window/2:nPoints-window/2+1]
 		else:
@@ -658,13 +659,13 @@ class Analysis(object):
 			noise = noiseArr[i]
 			print(" -- Simulation " + str(i+1) + "/" + str(nPoints) + " : simulation noise value = " + str(noise) + " -- ")
 			bestIndex = np.argmax(self.y[index])
-			[score, distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, movie=False, rc=False, simTime=100, \
-				simNoise=noise)
+			[score, distArr[i], powerArr[i]] = self.simulate_ind(index, bestIndex, simTime=50, simNoise=noise, **kwargs)
 
 		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
 		fig, ax = Plot.initPlot()
 		ax.semilogx(noiseArr, distArr, 'r.', label = "Noisy simulation scores" )
 		ax.semilogx(noiseArr_av, averageArr, 'b-', label = "Score average")
+		ax.set_ylim([0, 600])
 		plt.title("Simulation accuracy with increasing simulation relative noise")
 		Plot.configurePlot(fig, ax, "Relative noise" + r'$ \ \sigma$ on simulation step values', "Distance Traveled [m]", legend = False)
 		if show: plt.show()
@@ -957,12 +958,22 @@ class Analysis(object):
 					trainingPlot="cont", alpha=alpha, beta=beta, outputFilename="control_n_" + \
 					str(self.n_nodes[index1]), outputFolder="nodes_CL_pic")
 			else:
-				#simul = TrainedSimulation(simulEnv, robot, filename="w.pkl")
-				simul = ForceTrainingSimulation(simulEnv, robot, \
-					transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
-					trainingPlot="all", alpha=alpha, beta=beta, outputFilename="training", \
-					outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
-					str(openPhase) + "_" + str(alpha) + "_" + str(beta))
+				if simNoise !=  0:
+					if noiseType == "impulse":
+						print "Not implemented yet"
+						return
+					elif noiseType == "rand":
+						simul = NoisyForceTrainingSimulation(simulEnv, robot, simNoise=simNoise, \
+						transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
+						trainingPlot="all", alpha=alpha, beta=beta, outputFilename="training", \
+						outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
+						str(openPhase) + "_" + str(alpha) + "_" + str(beta))
+				else:
+					simul = ForceTrainingSimulation(simulEnv, robot, \
+						transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
+						trainingPlot="all", alpha=alpha, beta=beta, outputFilename="training", \
+						outputFolder="ResLearning_" + str(transPhase) + "_" +  str(trainingPhase) + "_" + \
+						str(openPhase) + "_" + str(alpha) + "_" + str(beta))
 		else:
 			if simNoise !=  0:
 				if noiseType == "impulse":
@@ -1611,26 +1622,37 @@ class Analysis(object):
 			# Find and eliminate duplicated experiments
 			for j, no in enumerate(nodes):
 				if no[0] == it_nodes:
-					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
-						trainingPhase=sim_time_ol/float(sim_time_cl))
-					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
-					nodes[j].append(it_nodes)
-					nrmse[j].append(err[0])
-					dist_cl[j].append(d-d2)
-					dist[j].append(it_dist)
-					duplicate = True
+					if not noiseAnalysis:
+						s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
+							openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
+							trainingPhase=0.7)
+						s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
+						s3, d3, p3 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, nrmse=True)
+						nodes[j].append(it_nodes)
+						nrmse[j].append(err[0])
+						dist_cl[j].append(d-d2)
+						dist[j].append(d3-d2)
+						duplicate = True
 			if duplicate == False:
-					s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
-						openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
-						trainingPhase=sim_time_ol/float(sim_time_cl))
-					s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
-					print d, d2, it_dist
-					nodes.append([it_nodes])
-					nrmse.append([err[0]])
-					dist_cl.append([d-d2])
-					dist.append([it_dist])
+					if noiseAnalysis:
+						print " -- Producting noise analysis graphs for " + str(it_nodes) + " nodes --"
+						self.plot_noise_sim(best[1], filename=folder + "noise_ol_" + str(it_nodes), \
+							title="N = " + str(it_nodes), nPoints=50, window=7, \
+							movie=False, openPhase=0.3, rc=True, alpha=0.01, beta=0.95, transPhase=0, \
+							trainingPhase=sim_time_ol/float(sim_time_cl))
+					else:
+						s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
+							openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
+							trainingPhase=0.7)
+						s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
+						s3, d3, p3 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, nrmse=True)
+						nodes.append([it_nodes])
+						nrmse.append([err[0]])
+						dist_cl.append([d-d2])
+						dist.append([d3-d2])
 
+		if noiseAnalysis:
+			return
 
 		# Average points
 		n_av = 0
@@ -1653,8 +1675,8 @@ class Analysis(object):
 				num2str(float(n_av)/len(nodes)) + " data sets for each --")
 
 		# Sort lists
-		nodes, nrmse, dist, dist_cl, nrmse_std, dist_std, dist_cl_std = \
-			(list(t) for t in zip(*sorted(zip(nodes, nrmse, dist, dist_cl, nrmse_std, dist_std, dist_cl_std))))
+		nodes, dist, dist_std = \
+			(list(t) for t in zip(*sorted(zip(nodes, dist, dist_std))))
 
 		# Plot nrmse as a fonction of the nodes number
 		fig, ax = Plot.initPlot()
