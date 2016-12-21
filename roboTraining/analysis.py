@@ -12,11 +12,12 @@ from matplotlib.mlab import *
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import uniform_filter
 import sys,os
-# plt.style.use('fivethirtyeight')
-# plt.rc('text', usetex=True)
-# plt.rc('font', family='serif')
-# plt.rc('axes', facecolor='white')
-# plt.rc('savefig', facecolor='white')
+plt.style.use('fivethirtyeight')
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rc('axes', facecolor='white')
+plt.rc('savefig', facecolor='white')
+plt.rc('figure', autolayout=True)
 
 class Analysis(object):
 
@@ -702,13 +703,13 @@ class Analysis(object):
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 		plt.close()
 
-	def plot_noise_control(self, index=0, filename="results_noise_control", title=None, nPoints=75, window=15, show=False, save=True):
+	def plot_noise_control(self, index=0, filename="results_noise_control", title=None, nPoints=5, window=1, show=False, save=True):
 		"""Perform simulations for different values of noise on the control signals with the best individu of a file 
 		and plot the results"""
 
 		print(" -- Printing control noise graph for file " + self.filenames[index])
 
-		noiseArr = np.logspace(-2.5, 0.2, num=nPoints)
+		noiseArr = np.logspace(-8, 0, num=nPoints)
 		if window%2 == 0:
 			noiseArr_av = noiseArr[window/2:nPoints-window/2+1]
 		else:
@@ -727,8 +728,7 @@ class Analysis(object):
 		ax.semilogx(noiseArr, distArr, 'r.', label = "Noisy parameters scores" )
 		ax.semilogx(noiseArr_av, averageArr, 'b-', label = "Score average")
 		ax.set_xlim([-1000, 1.58])
-		plt.title("Simulation accuracy with increasing control signal relative noise")
-		Plot.configurePlot(fig, ax, "Relative noise" + r'$ \ \sigma$ on individu control signal', "Distance Traveled [m]", legend = False)
+		Plot.configurePlot(fig, ax, "Relative amplitude of Gaussian noise on actuation signal", "Distance Traveled [m]", legend = False)
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 		plt.close()
@@ -877,7 +877,8 @@ class Analysis(object):
 
 	def simulate_ind(self, index1=None, index2=None, simTime=None, simName="Simulation", rc=False, plotCycle=6, \
 		movie=False, pca=False, transPhase=0, trainingPhase=0.9, openPhase=0.1, alpha=0.0001, beta=0.95, \
-		pcaTitle="PCA", pcaFilename="pca", nrmse=False, simNoise=0, paramNoise=0, controlNoise=0, noiseType="rand"):
+		pcaTitle="PCA", pcaFilename="pca", rcTitle="rc", nrmse=False, simNoise=0, paramNoise=0, controlNoise=0, \
+		noiseType="rand", trainingPlot="cont"):
 		"""Render a simulation movie for a given individu"""
 
 		# Init variables
@@ -955,8 +956,8 @@ class Analysis(object):
 			if nrmse:
 				simul = ForceTrainingSimulation(simulEnv, robot, \
 					transPhase=transPhase, trainPhase=trainingPhase, openPhase=openPhase, \
-					trainingPlot="cont", alpha=alpha, beta=beta, outputFilename="control_n_" + \
-					str(self.n_nodes[index1]), outputFolder="nodes_CL_pic")
+					trainingPlot=trainingPlot, alpha=alpha, beta=beta, outputFilename="control_n_" + \
+					str(self.n_nodes[index1]), outputFolder="nodes_CL_pic", title=rcTitle)
 			else:
 				if simNoise !=  0:
 					if noiseType == "impulse":
@@ -1528,17 +1529,17 @@ class Analysis(object):
 				omega.append([it_omega])
 
 				# Limit cycle and video gait analysis
-				if movieAnalysis and it_omega < 19 and it_omega > 18:
+				if movieAnalysis and it_omega > 18 and it_omega < 19 and it_p_ref < 5000:
 					f = it_omega/2/np.pi
 					p = 1/f
 					n = int(p/self.ts[i]/4 + 1)
-					name  = str(f) +"_" + str(int(it_p_ref))
+					name  = str(int(f)) +"_" + str(int(it_p_ref))
 					simName = folder + "sim_" + name
 					# pcaName = folder + "pca_" + name
 					# pcaTitle = "Limit cycle for $f = " + num2str(np.ceil(it_omega/2/np.pi)) + \
-					# 	" Hz$ and $P = " + num2str(np.ceil(it_p_ref)) + " W$"
-					self.simulate_ind(best[1], best[2], simTime=int(8*p), movie=True, rc=False, \
-					simName=simName)
+					# 	" Hz$ and $P = " + num2str(np.ceil(it_p_ref)) + " W$"int(8*p)
+					self.simulate_ind(best[1], best[2], simTime=sim_time, movie=True, rc=False, \
+						simName=simName)
 
 
 		# Average points with multiple values
@@ -1578,9 +1579,9 @@ class Analysis(object):
 			next_ind = prev_ind+n_omega[i+1]
 			ax.errorbar(p_ref[prev_ind:next_ind], speed[prev_ind:next_ind], \
 				yerr=speed_std[prev_ind:next_ind], fmt='.-', \
-				linewidth=1.5, label="$f = $ " + num2str(omega[n_omega[i]*i]/2/np.pi) + " Hz")
+				linewidth=1.5, label="$f = $ " + num2str(omega[prev_ind]/2/np.pi) + " Hz")
 
-		#plt.title("Speed evolution under constrained power")
+		plt.title("Speed evolution under constrained power")
 		plt.xlim([0, max(p_ref)])
 		Plot.configurePlot(fig, ax, 'Power [W]','Speed [m/s]', legendLocation='lower right', size='small')
 		if show: plt.show()
@@ -1625,7 +1626,7 @@ class Analysis(object):
 					if not noiseAnalysis:
 						s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
 							openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
-							trainingPhase=0.7)
+							rcTitle=str(it_nodes), trainingPhase=0.7)
 						s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
 						s3, d3, p3 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, nrmse=True)
 						nodes[j].append(it_nodes)
@@ -1643,7 +1644,7 @@ class Analysis(object):
 					else:
 						s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
 							openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
-							trainingPhase=0.7)
+							rcTitle=str(it_nodes), trainingPhase=0.7)
 						s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
 						s3, d3, p3 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, nrmse=True)
 						nodes.append([it_nodes])
@@ -1694,10 +1695,29 @@ class Analysis(object):
 			color=self._get_style_colors()[0], label="Open loop distance")
 		ax.errorbar(nodes, dist_cl, yerr=dist_cl_std, linewidth=1.5, fmt=".-", \
 			color=self._get_style_colors()[1], label="Closed-loop distance")
-		plt.title("Travelled distance in function of nodes number")
-		Plot.configurePlot(fig, ax, 'Nodes','Travelled distance', legendLocation='lower right',\
+		Plot.configurePlot(fig, ax, 'Nodes number','Travelled distance [m]', legendLocation='lower right',\
 		 size='small')
 		if show: plt.show()
 		if save:
 			print(" -- Print DISTS in " + folder + filename + "_dist.png --")
 			plt.savefig(folder + filename + "_dist.png", format='png', dpi=300)
+
+	def plot_LC(self):
+		"""Perform specific analysis for closed loop experiments for different structures"""
+
+		folder = "nodes_CL_pic/"
+		mkdir_p(folder)
+
+		sim_time_cl = 50
+
+		# Fill values from loaded variables
+		for i in range(len(self.y)):
+
+			# Fetch iteration nodes number value and best individu
+			it_nodes = self.n_nodes[i]
+			best = self.get_best_ind(index=i)
+			it_dist = float(self.dists[best[1]][best[2]])
+
+			s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
+				openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
+				rcTitle=str(it_nodes), trainingPhase=0.7, trainingPlot="lc")

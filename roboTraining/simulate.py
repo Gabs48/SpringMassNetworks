@@ -37,6 +37,7 @@ class Plotter(object):
 		self.color = color
 		self.delete = delete
 		self.first_it = True
+
 		if plot:
 			self.border = border
 			self.plotCycle = plotCycle
@@ -113,9 +114,9 @@ class Plotter(object):
 						self.init = False;
 						self.maxy = np.max(ypos)
 					plt.ylim(-self.border, self.border + 1.2 * self.maxy)
-					if self.first_it == True:
-						self.xplotwidth = max(xpos) + self.border *5 - (min(xpos) - self.border)
-						self.first_it = False
+					#if self.first_it == True:
+					self.xplotwidth = max(xpos) + self.border - (min(xpos) - self.border)
+					#	self.first_it = False
 
 					for i,j in itertools.product(range(len(xpos)), range(len(ypos))):
 						if connections[i,j]:
@@ -441,7 +442,7 @@ class TrainingSimulation(VerletSimulation):
 	 """
 
 	def __init__(self, simulEnv, robot, omega=5, transPhase=0.2, trainPhase=0.6, trainingPlot="all", \
-		signTime=None, outputFilename="sinusoid", outputFolder="RC"):
+		signTime=None, outputFilename="sinusoid", outputFolder="RC", title="None"):
 		""" Init the training test sim class and parent classes
 		 - omega is the desired output sinusoid frequency. It should correspond to the frequency of the MSN
 		 - transPhase is the proportion of time dedicated to transitoire dynamics before training
@@ -460,6 +461,7 @@ class TrainingSimulation(VerletSimulation):
 		self.trainingPlot = trainingPlot
 		self.outputFolder = outputFolder
 		self.outputFilename = outputFilename
+		self.title = title
 
 		if not signTime:
 			self.signLength = self.simulEnv.simulationLength
@@ -593,7 +595,7 @@ class TrainingSimulation(VerletSimulation):
 
 		# Training phase (add data to trianing vector)
 		if it >= self.transLength and it < (self.transLength + self.trainLength - 1):
-			print "2. Training phase. It: " + str(it)
+			#print "2. Training phase. It: " + str(it)
 			self.trainStep()
 
 		# Training time (linear regression for output neurons)
@@ -623,6 +625,7 @@ class TrainingSimulation(VerletSimulation):
 				self.plotInputs()
 				self.plotError(-self.trainLength+50)
 				self.plot(n=6000, comp=2)
+			if self.trainingPlot == "lc":
 				self.plotLimitCycle()
 
 	def mse(self, arr1, arr2):
@@ -668,7 +671,7 @@ class TrainingSimulation(VerletSimulation):
 		y_err = []
 		if self.nrmsError == None:
 			for i in range(self.O):
-				y_err.append(self.nrmse(self.yTraining[:,i].reshape(-1,1), self.yTrained[:,i].reshape(-1,1),))
+				y_err.append(self.nrmse(self.yTraining[:,i].reshape(-1,1)-1, self.yTrained[:,i].reshape(-1,1)-1))
 
 			self.nrmsError = sum(y_err) / float(len(y_err))
 			print " -- Computing NRMS Error: " + str(self.nrmsError) + " --"
@@ -808,20 +811,18 @@ class TrainingSimulation(VerletSimulation):
 
 		fig, ax = Plot.initPlot()
 		if neg:
-			plt.plot(self.timeArray[n_tot-n_run-n:n_tot-n_run], self.error[-n:])
+			ax.plot(self.timeArray[n_tot-n_run-n:n_tot-n_run], 100*self.error[-n:], linewidth=1.2)
 		else:
-			plt.plot(self.timeArray[n_trans:n_trans+n], self.error[0:n])
-		plt.title("Error evolution")
-		plt.xlabel("Time")
-		plt.ylabel("Error")
-		if show: plt.show()
+			ax.semilogy(self.timeArray[n_trans:n_trans+n],  100*self.error[0:n], linewidth=1.2)
+
+		Plot.configurePlot(fig, ax, "Time [s]", "Mean Percentage Error on trained signal [\%]", legend = False)
 		if save: plt.savefig(self.outputFolder + "/" + self.outputFilename + "_error.png", format='png', dpi=300)
 
 	def plotLimitCycle(self, n=None, show=False, save=True):
 		"""Plot the limit cycle of x_training and y_trained"""
 
 		[n_trans, n_train, n_run, n_tot, n] = self._numPoints(n)
-		gap = 2
+		gap = 100
 		window = int(np.ceil((n-n_run-n_trans-1)/gap))
 
 		vec = self.xTraining.T
@@ -833,13 +834,16 @@ class TrainingSimulation(VerletSimulation):
 			pc1 = vec[:,0]
 			pc2 = vec[:,1]
 
+		print " -- Plot Limit cycle -- "
 		fig, ax = Plot.initPlot()#proj="3d")
 		for j in xrange(1, window):
+			print j, window
 			ax.plot(pc1[j*gap:(j+1)*gap+1], pc2[j*gap:(j+1)*gap+1], \
 				#self.timeArray[n_trans+1+j*gap:n_trans+1+(j+1)*gap+1], \
-				c=plt.cm.winter(1.*j/window), linewidth=1.2, label="PCA trajectory")
-		ax.set_xlabel('PC 1')
-		ax.set_ylabel('PC 2')
+				c=plt.cm.hot(0.75-0.75*float(j)/window), linewidth=1.2, label="PCA trajectory")
+		ax.set_xlabel('Node acceleration PC 1')
+		ax.set_ylabel('Node acceleration PC 2')
+		plt.title("Limit cycle of " + self.title + " nodes structure")
 		#ax.set_zlabel('Time')
 		#ax.view_init(30, 60)
 		if show: plt.show()
@@ -858,7 +862,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 	# Memory of previous accelerations
 	def __init__(self, simulEnv, robot, transPhase=0.2, trainPhase=0.6, trainingPlot=True, \
 		alpha=1, beta=0.1, openPhase=0.1, signTime=None, wDistPlot=True, outputFilename="sinusoid", \
-		outputFolder="RC", printPhase=True):
+		outputFolder="RC", printPhase=True, title="None"):
 		""" Init class: phases are reparted like this
 		- Transition phase: nothing happens here, we let the dynamics stabilizes
 		- Training phase: here we do online weights value training. The trianing phase itself is divided in three parts:
@@ -869,7 +873,7 @@ class ForceTrainingSimulation(TrainingSimulation):
 
 		# Fix here the training and running phase if needed
 		super(ForceTrainingSimulation, self).__init__(simulEnv, robot, transPhase=transPhase,  \
-			trainPhase=trainPhase, trainingPlot=trainingPlot, \
+			trainPhase=trainPhase, trainingPlot=trainingPlot, title=title, \
 			signTime=signTime, outputFilename=outputFilename, outputFolder=outputFolder)
 
 		# Class variables
@@ -1438,6 +1442,7 @@ class NoisyTrainingSimulation(NoisyVerletSimulation):
 		y_err = []
 		if self.nrmsError == None:
 			for i in range(self.O):
+				print self.yTraining[:,i].reshape(-1,1), self.yTraining[:,i].reshape(-1,1)-1
 				y_err.append(self.nrmse(self.yTraining[:,i].reshape(-1,1), self.yTrained[:,i].reshape(-1,1),))
 
 			self.nrmsError = sum(y_err) / float(len(y_err))
