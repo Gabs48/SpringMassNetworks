@@ -42,6 +42,7 @@ if __name__ == "__main__":
 	# Nodes number value analysis
 	#an.nodes()
 	an.nodes_CL()
+	#an.plot_LC()
 
 	# Noise analysis
 	#an.plot_all_noise_sims()

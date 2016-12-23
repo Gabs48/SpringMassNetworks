@@ -646,7 +646,7 @@ class TrainingSimulation(VerletSimulation):
 		max_val = max(np.max(arr1), np.max(arr2))
 		min_val = min(np.min(arr1), np.min(arr2))
 
-		return 1 - (rmse / (max_val - min_val))
+		return (rmse / (max_val - min_val))
 
 	def _numPoints(self, n):
 		"""Give the number of points to plot in each phase when using n points"""
@@ -671,7 +671,7 @@ class TrainingSimulation(VerletSimulation):
 		y_err = []
 		if self.nrmsError == None:
 			for i in range(self.O):
-				y_err.append(self.nrmse(self.yTraining[:,i].reshape(-1,1)-1, self.yTrained[:,i].reshape(-1,1)-1))
+				y_err.append(self.nrmse(self.yTraining[:,i].reshape(-1,1), self.yTrained[:,i].reshape(-1,1)))
 
 			self.nrmsError = sum(y_err) / float(len(y_err))
 			print " -- Computing NRMS Error: " + str(self.nrmsError) + " --"

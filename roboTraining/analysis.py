@@ -17,7 +17,7 @@ plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 plt.rc('axes', facecolor='white')
 plt.rc('savefig', facecolor='white')
-plt.rc('figure', autolayout=True)
+#plt.rc('figure', autolayout=True)
 
 class Analysis(object):
 
@@ -695,21 +695,21 @@ class Analysis(object):
 
 		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
 		fig, ax = Plot.initPlot()
-		ax.semilogx(noiseArr, distArr, 'r.', label = "Noisy parameters scores" )
-		ax.semilogx(noiseArr_av, averageArr, 'b-', label = "Score average")
+		ax.semilogx(noiseArr, distArr, color=self._get_style_colors()[1], linestyle='', marker='.',  linewidth=1.2, label = "Noisy parameters scores" )
+		ax.semilogx(noiseArr_av, averageArr, color=self._get_style_colors()[0], linestyle='-', linewidth=1.2, label = "Score average")
 		plt.title("Simulation accuracy with increasing parameters relative noise")
 		Plot.configurePlot(fig, ax, "Relative noise" + r'$ \ \sigma$ on individu parameters', "Distance Traveled [m]", legend = False)
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
 		plt.close()
 
-	def plot_noise_control(self, index=0, filename="results_noise_control", title=None, nPoints=5, window=1, show=False, save=True):
+	def plot_noise_control(self, index=0, filename="results_noise_control", title=None, nPoints=75, window=15, show=False, save=True):
 		"""Perform simulations for different values of noise on the control signals with the best individu of a file 
 		and plot the results"""
 
 		print(" -- Printing control noise graph for file " + self.filenames[index])
 
-		noiseArr = np.logspace(-8, 0, num=nPoints)
+		noiseArr = np.logspace(-6, 0, num=nPoints)
 		if window%2 == 0:
 			noiseArr_av = noiseArr[window/2:nPoints-window/2+1]
 		else:
@@ -725,9 +725,9 @@ class Analysis(object):
 
 		averageArr = np.convolve(np.array(distArr), np.ones((window,))/window, mode='valid')
 		fig, ax = Plot.initPlot()
-		ax.semilogx(noiseArr, distArr, 'r.', label = "Noisy parameters scores" )
-		ax.semilogx(noiseArr_av, averageArr, 'b-', label = "Score average")
-		ax.set_xlim([-1000, 1.58])
+		ax.semilogx(noiseArr, distArr, color=self._get_style_colors()[1], linestyle='', marker='.',  linewidth=1.2, label = "Noisy signal score" )
+		ax.semilogx(noiseArr_av, averageArr, color=self._get_style_colors()[0], linestyle='-', linewidth=1.2, label = "Score average")
+		#ax.set_xlim([-1000, 1.58])
 		Plot.configurePlot(fig, ax, "Relative amplitude of Gaussian noise on actuation signal", "Distance Traveled [m]", legend = False)
 		if show: plt.show()
 		if save: plt.savefig(filename + ".png", format='png', dpi=300)
@@ -820,7 +820,7 @@ class Analysis(object):
 			self.plot_noise_params(index=i, filename=filename + "_" + str(i), show=show, save=save)
 			i += 1
 
-	def plot_all_noise_control(self, filename="results_noise_params", show=False, save=True):
+	def plot_all_noise_control(self, filename="results_noise_control", show=False, save=True):
 		"""Plot accuracy evoluation when using noisy control signals for all files of the current folder"""
 
 		print(" -- Printing control signal noise evolution for each file. This can take a while -- ")
@@ -1602,7 +1602,7 @@ class Analysis(object):
 		dist_cl = []
 		sim_time = self.sim_time[0]
 		opt_type = self.opt_type[0]
-		sim_time_cl = 50
+		sim_time_cl = 70
 		sim_time_ol = 40
 		max_it = 2
 
@@ -1626,13 +1626,13 @@ class Analysis(object):
 					if not noiseAnalysis:
 						s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
 							openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
-							rcTitle=str(it_nodes), trainingPhase=0.7)
+							rcTitle=str(it_nodes), trainingPhase=float(sim_time_ol)/sim_time_cl)
 						s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
-						s3, d3, p3 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, nrmse=True)
+						s3, d3, p3 = self.simulate_ind(best[1], best[2], simTime=20, nrmse=True)
 						nodes[j].append(it_nodes)
 						nrmse[j].append(err[0])
 						dist_cl[j].append(d-d2)
-						dist[j].append(d3-d2)
+						dist[j].append(d3-it_dist)
 						duplicate = True
 			if duplicate == False:
 					if noiseAnalysis:
@@ -1644,13 +1644,14 @@ class Analysis(object):
 					else:
 						s, d, p, err = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, movie=False, \
 							openPhase=0.3, rc=True, nrmse=True, alpha=0.01, beta=0.95, transPhase=0, \
-							rcTitle=str(it_nodes), trainingPhase=0.7)
+							rcTitle=str(it_nodes), trainingPhase=float(sim_time_ol)/sim_time_cl)
 						s2, d2, p2 = self.simulate_ind(best[1], best[2], simTime=sim_time_ol, nrmse=True)
-						s3, d3, p3 = self.simulate_ind(best[1], best[2], simTime=sim_time_cl, nrmse=True)
+						s3, d3, p3 = self.simulate_ind(best[1], best[2], simTime=20, nrmse=True)
+						print d, d2, d3
 						nodes.append([it_nodes])
 						nrmse.append([err[0]])
 						dist_cl.append([d-d2])
-						dist.append([d3-d2])
+						dist.append([d3-it_dist])
 
 		if noiseAnalysis:
 			return
